@@ -1,0 +1,26 @@
+=== 1. Media drive mounted (everything below is meaningless if not) ===
+PASS
+=== 2. Local vs remote totals ===
+--- MOVIES ---
+local:  7363 files, 3612780382420 bytes
+remote: Total objects: 7.363k (7363) Total size: 3.286 TiB (3612780382420 Byte) 
+--- SHOWS ---
+local:  6566 files, 1900911285394 bytes
+remote: Total objects: 6.566k (6566) Total size: 1.729 TiB (1900911285394 Byte) 
+=== 3. Per-file reconciliation, MOVIES (should report 0 differences) ===
+2026/08/10 21:39:23 NOTICE: S3 bucket s3-glacier-test-123456789012-us-west-2-an path MOVIES: 0 differences found
+2026/08/10 21:39:23 NOTICE: S3 bucket s3-glacier-test-123456789012-us-west-2-an path MOVIES: 7363 matching files
+PASS
+=== 4. Per-file reconciliation, SHOWS (should report 0 differences) ===
+2026/08/10 21:39:29 NOTICE: S3 bucket s3-glacier-test-123456789012-us-west-2-an path SHOWS: 0 differences found
+2026/08/10 21:39:29 NOTICE: S3 bucket s3-glacier-test-123456789012-us-west-2-an path SHOWS: 6566 matching files
+PASS
+=== 5. Every object is DEEP_ARCHIVE (guards the cost model) ===
+PASS
+=== 6. Bucket versioning still enabled ===
+PASS
+=== 7. No orphaned multipart uploads (they bill as storage, invisible to ls) ===
+PASS
+=== 8. Only MOVIES/ and SHOWS/ at top level (no stray prefixes) ===
+PASS
+=== Done ===

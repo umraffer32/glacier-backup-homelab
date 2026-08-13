@@ -1,0 +1,1265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Pickleboy Glacier Backup — Project Report</title>
+<link rel="stylesheet" href="print.css">
+</head>
+<body>
+
+<!-- ================= COVER ================= -->
+<div class="cover">
+  <div class="rule-top"></div>
+  <div class="eyebrow">Homelab infrastructure record</div>
+  <h1>Pickleboy Glacier Backup — Project Report</h1>
+  <p class="subtitle">Two libraries into two Glacier archives — five terabytes of
+  Jellyfin media in Deep Archive, the full Immich photo library in Instant
+  Retrieval: how they were built, what they cost, the bug three reviews blessed,
+  and the afternoon one of them proved its worth.</p>
+  <div class="date">August 11, 2026</div>
+
+  <table class="cover-stats">
+    <tr>
+      <td><span class="val">5.1 TB</span><span class="lbl">movies · deep archive</span></td>
+      <td><span class="val">13,929</span><span class="lbl">objects</span></td>
+      <td><span class="val">$5.08</span><span class="lbl">per month</span></td>
+      <td><span class="val">0</span><span class="lbl">differences on reconciliation</span></td>
+    </tr>
+    <tr>
+      <td><span class="val">173 GiB</span><span class="lbl">pictures · instant retrieval</span></td>
+      <td><span class="val">82,455</span><span class="lbl">objects</span></td>
+      <td><span class="val">$0.70</span><span class="lbl">per month</span></td>
+      <td><span class="val">0</span><span class="lbl">differences on reconciliation</span></td>
+    </tr>
+  </table>
+
+  <div class="cover-foot">
+    movies: s3-glacier-test-123456789012-us-west-2-an · Deep Archive · /mnt/media/STORAGE<br>
+    pictures: s3-glacier-ir-pictures-123456789012-us-west-2 · Instant Retrieval · /mnt/media/PICTURES<br>
+    server: pickleboy · region: us-west-2 · repo: rclone-backups
+  </div>
+</div>
+
+<!-- ================= CONTENTS ================= -->
+<section class="front" id="toc">
+  <h2>Contents</h2>
+  <div class="front-rule"></div>
+  <ul class="toc">
+    <li><a href="#summary"><span class="pg" href="#summary"></span><span class="toc-num">—</span><span class="toc-title">Executive summary</span></a></li>
+    <li><a href="#ch-1"><span class="pg" href="#ch-1"></span><span class="toc-num">01</span><span class="toc-title">The homelab, in one page</span></a></li>
+    <li><a href="#ch-2"><span class="pg" href="#ch-2"></span><span class="toc-num">02</span><span class="toc-title">Sizing the problem</span></a></li>
+    <li><a href="#ch-3"><span class="pg" href="#ch-3"></span><span class="toc-num">03</span><span class="toc-title">Six decisions, six reasons</span></a></li>
+    <li><a href="#ch-4"><span class="pg" href="#ch-4"></span><span class="toc-num">04</span><span class="toc-title">The build</span></a></li>
+    <li><a href="#ch-5"><span class="pg" href="#ch-5"></span><span class="toc-num">05</span><span class="toc-title">The bug three reviews blessed</span></a></li>
+    <li><a href="#ch-6"><span class="pg" href="#ch-6"></span><span class="toc-num">06</span><span class="toc-title">The upload</span></a></li>
+    <li><a href="#ch-7"><span class="pg" href="#ch-7"></span><span class="toc-num">07</span><span class="toc-title">The crash</span></a></li>
+    <li><a href="#ch-8"><span class="pg" href="#ch-8"></span><span class="toc-num">08</span><span class="toc-title">Proof</span></a></li>
+    <li><a href="#ch-9"><span class="pg" href="#ch-9"></span><span class="toc-num">09</span><span class="toc-title">The bill</span></a></li>
+    <li><a href="#ch-10"><span class="pg" href="#ch-10"></span><span class="toc-num">10</span><span class="toc-title">Getting it back</span></a></li>
+    <li><a href="#ch-11"><span class="pg" href="#ch-11"></span><span class="toc-num">11</span><span class="toc-title">Where it stands</span></a></li>
+    <li><a href="#ch-12"><span class="pg" href="#ch-12"></span><span class="toc-num">12</span><span class="toc-title">The warm archive</span></a></li>
+    <li class="toc-app"><a href="#app-a"><span class="pg" href="#app-a"></span><span class="toc-num">A</span><span class="toc-title">The three scripts</span></a></li>
+    <li class="toc-app"><a href="#app-b"><span class="pg" href="#app-b"></span><span class="toc-num">B</span><span class="toc-title">The IAM policy</span></a></li>
+    <li class="toc-app"><a href="#app-c"><span class="pg" href="#app-c"></span><span class="toc-num">C</span><span class="toc-title">The rclone remote config</span></a></li>
+    <li class="toc-app"><a href="#app-d"><span class="pg" href="#app-d"></span><span class="toc-num">D</span><span class="toc-title">Verification transcript</span></a></li>
+  </ul>
+</section>
+
+<!-- ================= EXECUTIVE SUMMARY ================= -->
+<section class="front" id="summary">
+  <h2>Executive summary</h2>
+  <div class="front-rule"></div>
+
+  <p>Over the weekend of August 8–10, 2026, the media library on pickleboy — a
+  self-hosted Jellyfin server — was backed up in full to Amazon S3 Glacier Deep
+  Archive: 13,929 files, 5.1TB, everything in <span class="mono">MOVIES</span> and
+  <span class="mono">SHOWS</span>. The design is deliberately narrow. It is a
+  disaster-recovery copy, not a sync: additive-only, written by an IAM identity that
+  structurally cannot delete anything, to a versioned bucket in the coldest storage
+  class Amazon sells.</p>
+
+  <p>Keeping it costs $5.08 a month — $61.00 a year, about 23 times cheaper than the
+  same bytes in S3 Standard. Getting it all back in a real disaster would cost
+  roughly $494–585 and take a day or two, which is the accepted trade: this backup
+  exists to be cheap to keep and is expected never to be needed.</p>
+
+  <p>The upload itself took 22 hours 2 minutes at an average of 66 MiB/s, and the
+  result was verified independently the same afternoon it finished: every one of the
+  13,929 objects reconciled against the local library by count and by byte, zero
+  differences, and a full census confirming 100% of objects landed in Deep Archive.
+  The verification is now a repeatable eight-check script, not a one-time event.</p>
+
+  <p>The build produced exactly one real bug — a config line three separate review
+  passes had explicitly confirmed as necessary, which then silently broke every
+  write on the first real run. It announced itself in the log's first five lines and
+  was fixed by deletion. The same day the upload finished, an unrelated crash took the whole
+  library offline in a way that looked exactly like total data loss; it wasn't, but
+  for 25 minutes the backup — 31 minutes old at the time of the crash — was briefly
+  the only copy that appeared to exist.</p>
+
+  <p>The next morning, the second library followed the same road. The Immich
+  photo collection — the other USB drive, the one holding the irreplaceable
+  data — went to S3 Glacier Instant Retrieval on August 11: 173&nbsp;GiB and
+  82,455 objects, in a separate bucket, under a second no-delete policy on the
+  same backup user, and in the opposite storage class — because a photo restore
+  is an album on a bad day, not a disaster, and should answer in milliseconds
+  rather than in 12 to 48 hours. The upload ran four hours and five minutes with
+  zero errors and was reconciled byte-exact against S3 the same afternoon:
+  82,455 of 82,455 objects, zero differences. Keeping it costs about $0.70 a
+  month; restoring every byte of it, about twelve dollars.</p>
+
+  <p>Nothing is outstanding. The one deliberately unexercised path is the movies
+  restore itself, which costs real money to drill; its permissions are tested,
+  its procedure documented, and its price known. The one deliberately uninstalled
+  piece is the pictures cron — written and tested, held back by choice. Next
+  scheduled action: a yearly rotation of the backup credentials.</p>
+
+  <table class="summary-stats">
+    <tr>
+      <td><span class="val">22h 02m</span><span class="lbl">movies upload, wall clock</span></td>
+      <td><span class="val">66 MiB/s</span><span class="lbl">average throughput</span></td>
+      <td><span class="val">$1.14</span><span class="lbl">one-time upload cost</span></td>
+      <td><span class="val">$61.00</span><span class="lbl">per year to keep</span></td>
+    </tr>
+    <tr>
+      <td><span class="val">4h 05m</span><span class="lbl">pictures upload, wall clock</span></td>
+      <td><span class="val">12 MiB/s</span><span class="lbl">average throughput</span></td>
+      <td><span class="val">$1.65</span><span class="lbl">one-time upload cost</span></td>
+      <td><span class="val">$8.40</span><span class="lbl">per year to keep</span></td>
+    </tr>
+  </table>
+</section>
+
+<!-- ================= CH 1 ================= -->
+<section class="chapter" id="ch-1">
+  <div class="ch-eyebrow">Chapter 01</div>
+  <div class="ch-num">01</div>
+  <h2>The homelab, in one page</h2>
+  <div class="ch-rule"></div>
+
+  <p>Pickleboy is a headless Ubuntu server in a closet: one box, no monitor, managed
+  entirely over SSH. It runs the household's self-hosted services in Docker — the
+  two that matter here are <b>Jellyfin</b>, the media server, and <b>Immich</b>, the
+  photo server. It has 15&nbsp;GB of RAM, a 512&nbsp;GB internal SSD for the
+  operating system, and its bulk storage hangs off USB: an 8TB WD Elements drive
+  holding the Jellyfin library at <span class="mono">/mnt/media/STORAGE</span>, and
+  a 4TB WD My Book holding the photos.</p>
+
+  <p>The 8TB drive is the subject of this report. It carries about five terabytes of
+  hand-curated movies and television — years of acquiring, picking quality cuts,
+  and pruning — and it is formatted NTFS, mounted read-write on Linux through the
+  kernel's <span class="mono">ntfs3</span> driver. That combination works, but it is
+  the least battle-hardened piece of the stack, a fact that becomes relevant in
+  chapter 7.</p>
+
+  <p>Until this project, that drive was the only copy. Media is re-acquirable in
+  principle, so this was a considered risk rather than an oversight — but "in
+  principle" means months of re-curation in practice, and the drive is a
+  single consumer USB disk with years on the clock. What "backed up" needed to mean
+  here was narrow and specific: <em>a second copy that survives the drive dying,
+  the box dying, or a mistake at the keyboard — for as close to free as physics and
+  Amazon allow.</em> Not sync, not versioned working storage, not something touched
+  weekly. A copy of last resort.</p>
+
+  <p>Amazon's S3 Glacier Deep Archive is built for exactly that shape: storage
+  priced at about a dollar per terabyte-month, in exchange for retrievals that take
+  12–48 hours and cost real money. Those penalties are irrelevant to a
+  disaster-recovery copy and the price is not. The photos on the other drive were
+  deliberately kept out of this project's scope — they change differently,
+  accumulate constantly, and deserved their own design rather than a bolt-on to
+  this one. They have since gotten it: a separate backup to S3 Glacier Instant
+  Retrieval, completed and verified August 11, 2026.</p>
+</section>
+
+<!-- ================= CH 2 ================= -->
+<section class="chapter" id="ch-2">
+  <div class="ch-eyebrow">Chapter 02</div>
+  <div class="ch-num">02</div>
+  <h2>Sizing the problem</h2>
+  <div class="ch-rule"></div>
+
+  <p>Before any architecture, the library was measured — actually walked with
+  <span class="mono">du</span> and <span class="mono">find</span>, not estimated
+  from folder counts. The measured numbers became the project's fixed points, and
+  every later figure in this report reconciles back to them.</p>
+
+  <table class="data">
+    <tr><th>Leg</th><th class="num">Bytes</th><th class="num">Size</th><th class="num">Files</th><th class="num">Share</th></tr>
+    <tr><td>MOVIES</td><td class="num">3,612,780,382,420</td><td class="num">3.286 TiB</td><td class="num">7,363</td><td class="num">65%</td></tr>
+    <tr><td>SHOWS</td><td class="num">1,900,911,285,394</td><td class="num">1.729 TiB</td><td class="num">6,566</td><td class="num">35%</td></tr>
+    <tr class="total"><td>Total</td><td class="num">5,513,691,667,814</td><td class="num">5,135 GiB</td><td class="num">13,929</td><td class="num">100%</td></tr>
+  </table>
+
+  <p>Of those files, 3,281 are large enough (over 200&nbsp;MiB) that S3 uploads them
+  in pieces — 82,384 multipart parts at the 64&nbsp;MB chunk size this project
+  settled on, a figure that matters to the one-time cost story in chapter 9. The
+  rest, 10,648 files, upload as single PUTs.</p>
+
+  <h3>Compression was tested, not assumed away</h3>
+
+  <p>The obvious question before paying to store five terabytes: does compressing
+  it first save anything? The obvious answer — "it's already-compressed video, so
+  no" — is the kind of claim this project preferred to test. Real 100&nbsp;MB
+  samples from mid-file were run through three generations of general-purpose
+  codecs at aggressive settings: <span class="mono">gzip -9</span>,
+  <span class="mono">zstd -19</span>, and <span class="mono">xz -9</span>.</p>
+
+  <p>Best case across all three: <b>1.49% smaller</b>. Worst case: the "compressed"
+  archive came out marginally bigger. At Deep Archive prices, the best case is worth
+  about nine cents a month — against which compression would cost CPU-days up
+  front, and, far worse, turn every future single-file restore into
+  "retrieve and unpack an archive volume." The files ship raw.</p>
+
+  <p>The lever that actually works is re-encoding — modern codecs could plausibly
+  shrink the library 30–50%, proven with a direct double-rip comparison of the same
+  film. It was rejected anyway: it is a months-long transcoding project that alters
+  the originals, which is a different undertaking than backing them up. Worth
+  knowing the lever exists; wrong project to pull it in.</p>
+
+  <h3>The junk stays in</h3>
+
+  <p>The library also contains debris that rode along with downloads over the
+  years — 383 <span class="mono">.exe</span> files, stray
+  <span class="mono">.rar</span> fragments, sample clips, about 1,690 files and
+  2.2&nbsp;MB in all. A 146-line exclude list was drafted, priced, and thrown away:
+  uploading the junk costs roughly nine cents once and nothing meaningful per
+  month, while the exclude list would be a permanent maintenance liability wired
+  into every future command, silently going stale as new downloads invent new junk.
+  Simplicity won, deliberately.</p>
+</section>
+
+<!-- ================= CH 3 ================= -->
+<section class="chapter" id="ch-3">
+  <div class="ch-eyebrow">Chapter 03</div>
+  <div class="ch-num">03</div>
+  <h2>Six decisions, six reasons</h2>
+  <div class="ch-rule"></div>
+
+  <p>The whole architecture is six decisions. Each was argued, several were
+  reversed from first instincts, and one — number 3 — carried a hidden landmine
+  that gets its own chapter. They are recorded here as they stand, with the
+  reasoning that locked them.</p>
+
+  <h3>1 · Copy, never mirror</h3>
+  <p>The sync command is <span class="mono">rclone copy</span> — additive only. A
+  mirror-style sync propagates local deletions to the backup, which is exactly
+  backwards for disaster recovery: the most likely disaster <em>is</em> something
+  deleting local files. Copy-only means a local mistake cannot reach into the
+  archive, and it structurally sidesteps Deep Archive's 180-day early-deletion fee,
+  which a mirroring sync could trigger through routine local reorganization.</p>
+
+  <h3>2 · Scope: exactly MOVIES and SHOWS</h3>
+  <p>The backup covers <span class="mono">/mnt/media/STORAGE/MOVIES</span> and
+  <span class="mono">/mnt/media/STORAGE/SHOWS</span> and nothing else. This matches
+  how the library actually works: new downloads land elsewhere first and double as
+  the to-watch queue, then get hand-moved into the library in batches once watched.
+  Anything not yet moved in is, by definition, not yet curated — and is
+  automatically excluded without any special handling.</p>
+
+  <h3>3 · Reuse the existing bucket</h3>
+  <p>An empty bucket from earlier experimentation already existed —
+  <span class="mono">s3-glacier-test-123456789012-us-west-2-an</span>, us-west-2. It
+  was verified clean and correctly configured before reuse: zero objects, SSE-S3
+  encryption on by default, all four public-access-block flags set, no lifecycle
+  rules, no bucket policy. One property mattered more than anyone realized at the
+  time: Object Ownership is <b>BucketOwnerEnforced</b>, meaning ACLs are disabled
+  bucket-wide. The config consequence drawn from that fact became this project's
+  only real bug — chapter 5.</p>
+
+  <h3>4 · A scoped IAM user that cannot delete</h3>
+  <p>The backup runs as a dedicated IAM user, not the account's admin identity —
+  a decision <em>reversed</em> from the initial call. The admin profile uses SSO,
+  and SSO sessions cap at 12 hours; the initial upload was projected to take
+  roughly a day, meaning credentials would expire mid-run. That practical problem
+  forced the right security posture: a dedicated user with long-lived keys, scoped
+  to this one bucket, granted List, Put, Get, Restore, and the multipart set — and
+  <b>no delete permission of any kind</b>. A leaked key can add junk to one bucket;
+  it cannot erase a byte of history. The admin identity still exists, used only for
+  one-time administrative acts: creating the user, flipping bucket settings.</p>
+
+  <figure>
+    <img src="figures/fig-architecture.svg" alt="Write-path architecture: library through rclone and a scoped IAM user into the S3 bucket, with the no-delete boundary drawn around everything that touches AWS.">
+    <figcaption><span class="fig-num">Figure 1</span> — The write path. Everything
+    inside the dashed boundary operates under the scoped IAM user; nothing inside
+    it holds a delete permission, so the archive is additive by construction, not
+    by discipline.</figcaption>
+  </figure>
+
+  <h3>5 · Versioning on, before the first byte</h3>
+  <p>Copy-only protects the archive from local mistakes, but not from remote-side
+  ones — an accidental recursive delete run with the wrong profile, or a
+  <span class="mono">sync</span> typed out of habit someday. Bucket versioning
+  converts either from permanent loss into a recoverable delete-marker. In normal
+  operation it costs effectively nothing: this library is write-once, with no
+  automation churning files, so second versions simply don't get created.</p>
+
+  <h3>6 · No exclude list</h3>
+  <p>Chapter 2's junk files stay. Nine cents once beats a config file that must be
+  maintained forever and fails silently when it goes stale. The archive is a
+  faithful copy of the library, debris included — which also means a restore
+  reproduces the library exactly as it was, no reconstruction logic required.</p>
+</section>
+
+<!-- ================= CH 4 ================= -->
+<section class="chapter" id="ch-4">
+  <div class="ch-eyebrow">Chapter 04</div>
+  <div class="ch-num">04</div>
+  <h2>The build</h2>
+  <div class="ch-rule"></div>
+
+  <p>The build itself was deliberately boring: install one tool, create one user,
+  write one config, enable one bucket setting, then test the pessimistic cases
+  before moving a single real byte. The plan went through three review passes
+  before execution — one for correctness and safety, one a simplicity pass that
+  stripped speculative tuning, one a cost audit that re-derived every dollar
+  figure against AWS's published rates.</p>
+
+  <p>The simplicity pass earned its keep twice. It removed the concurrency tuning
+  flags (<span class="mono">--transfers</span>, <span class="mono">--checkers</span>,
+  upload concurrency) on the argument that the bottleneck is a single spinning USB
+  disk, where more concurrent reads mean more seek thrash, not more throughput. And
+  it moved <span class="mono">storage_class</span> and
+  <span class="mono">chunk_size</span> out of command-line flags into the remote
+  config itself — eliminating the forget-the-flag failure mode where one absent-minded
+  invocation uploads terabytes into the wrong storage class. The 64&nbsp;MB chunk
+  size, set once in config, is also what cut the projected one-time upload fees
+  from $5.92 to $1.14.</p>
+
+  <p>Setup, as executed: rclone 1.75.0 via its official installer; the IAM user and
+  its policy (Appendix B) created through the admin profile; the remote config
+  written (Appendix C); versioning enabled on the bucket; and then a five-check
+  smoke test against the new credentials — <span class="mono">test-iam-user.sh</span>,
+  Appendix A — which proves the grants work <em>and</em> that delete is denied. The
+  test that must fail is the most important line in it.</p>
+
+  <h3>Drilled, not just documented</h3>
+
+  <p>Three failure modes got rehearsed before the real run rather than reasoned
+  about:</p>
+
+  <ul>
+    <li><b>Interrupted multipart uploads.</b> A real upload was killed mid-transfer.
+    Confirmed: the orphaned parts are invisible to a normal listing but show up via
+    <span class="mono">list-multipart-uploads</span>, they clean up with
+    <span class="mono">abort-multipart-upload</span>, and a re-run picks up cleanly.
+    Orphans bill as storage forever if unnoticed — this is why the verification
+    script's check 7 exists.</li>
+    <li><b>Dropped SSH mid-upload.</b> Verified that tmux's server reparents to
+    PID&nbsp;1, then proved it by letting a detached upload run to completion
+    unattended. A 22-hour transfer cannot depend on a laptop staying open.</li>
+    <li><b>Leftover test objects.</b> The diagnostic objects from all this testing
+    were deleted via the admin profile and the bucket re-listed to confirm — so the
+    archive's history starts clean, and chapter 8's "nothing stray" check has meant
+    something from day one.</li>
+  </ul>
+
+  <p>Then the first real run was launched — and failed instantly, five times in
+  ninety-nine seconds.</p>
+</section>
+
+<!-- ================= CH 5 ================= -->
+<section class="chapter" id="ch-5">
+  <div class="ch-eyebrow">Chapter 05</div>
+  <div class="ch-num">05</div>
+  <h2>The bug three reviews blessed</h2>
+  <div class="ch-rule"></div>
+
+  <p>Decision 3 established that the bucket has ACLs disabled
+  (BucketOwnerEnforced). From that true fact, the build plan derived a config
+  requirement — stated with complete confidence, in writing:</p>
+
+  <div class="callout">
+    <p class="co-title">The plan, before the first run</p>
+    <p><em>"Object Ownership is BucketOwnerEnforced (ACLs disabled) — this is why
+    the rclone remote config below must set <span class="mono">acl = unset</span>;
+    without it the very first upload would fail with
+    AccessControlListNotSupported."</em></p>
+    <p><em>"Reviewed and confirmed: … every technical claim
+    (<span class="mono">acl=unset</span> necessity …) was independently verified
+    against the live box, AWS's own docs/API, and rclone's own docs."</em></p>
+  </div>
+
+  <p>It was exactly backwards. The <span class="mono">acl = unset</span> line did
+  not prevent the failure — it <em>was</em> the failure. On the first real run,
+  every write died with the same error:</p>
+
+  <div class="pre-label">backup.log, lines 1–5 — the first real run, Aug 9, 09:19</div>
+  <pre>2026/08/09 09:19:35 ERROR : 30.Days.Of.Night.2007.1080p.BrRip.x264.YIFY.mp4:
+  Failed to copy: multi-thread copy: failed to open chunk writer: create
+  multipart upload failed: operation error S3: CreateMultipartUpload, &hellip;
+  StatusCode: 400 &hellip; api error InvalidArgument: UnknownError
+
+[ four more, identical shape, through 09:21:14 ]</pre>
+
+  <p>The mechanism, once found, is almost funny: with the line present, rclone put
+  an ACL value on the wire; the bucket, with ACLs disabled, rejected any request
+  that carries one. With the line simply absent, rclone sends no ACL at all — which
+  is the correct behavior the plan thought it was configuring. The fix was
+  deletion, plus one genuinely needed addition
+  (<span class="mono">no_check_bucket</span>, since the scoped user can't perform
+  bucket-existence checks):</p>
+
+  <pre>  [pickleboy-glacier]
+  type = s3
+  &hellip;
+- acl = unset            &lt;- removed. this line was the bug
++ no_check_bucket = true &lt;- added with the fix</pre>
+
+  <p>The uncomfortable part is not the bug — it's the review record. Three separate
+  passes signed off on that line, one of them claiming independent verification of
+  its necessity. All three verified it the same way: by reading — docs, config,
+  bucket properties. None of them ever <em>wrote an object</em>. The smoke test that
+  did write (chapter 4) wrote through the AWS CLI, not through rclone, so the
+  rclone-specific config never got exercised until the real run. A claim can survive
+  any number of reviews that don't touch the code path it's about.</p>
+
+  <p>The lesson got applied the same day it was learned, and shapes everything in
+  chapter 8: <b>proof requires exercising the actual path, and a check that can't
+  fail isn't a check.</b> Total cost of the bug: five error lines in a log and
+  about five hours between failure and fix — cheap, because the failure was loud.
+  The expensive version of this bug is the one that fails quietly.</p>
+</section>
+
+<!-- ================= CH 6 ================= -->
+<section class="chapter" id="ch-6">
+  <div class="ch-eyebrow">Chapter 06</div>
+  <div class="ch-num">06</div>
+  <h2>The upload</h2>
+  <div class="ch-rule"></div>
+
+  <p>With the acl line gone, the same command that had failed five times ran for
+  twenty-two hours without a single error. The run was two sequential
+  <span class="mono">rclone copy</span> legs — MOVIES, then SHOWS — inside tmux,
+  logging to <span class="mono">backup.log</span>. Nobody had ever written down how
+  long it actually took; the figures below were mined from rclone's own log for
+  this report.</p>
+
+  <table class="data">
+    <tr><th>Leg</th><th class="num">Started</th><th class="num">Finished</th><th class="num">Elapsed</th><th class="num">Moved</th><th class="num">Rate</th></tr>
+    <tr><td>MOVIES</td><td class="num">Aug 9, 16:41:30</td><td class="num">Aug 10, 07:36:10</td><td class="num">14h 54m 40s</td><td class="num">3.286 TiB</td><td class="num">61.5 MiB/s</td></tr>
+    <tr><td>SHOWS</td><td class="num">Aug 10, 07:36:10</td><td class="num">Aug 10, 14:43:43</td><td class="num">7h 07m 33s</td><td class="num">1.729 TiB</td><td class="num">85.7 MiB/s</td></tr>
+    <tr class="total"><td>Combined</td><td class="num" colspan="2">back-to-back, no gap</td><td class="num">22h 02m 13s</td><td class="num">5.015 TiB</td><td class="num">66.3 MiB/s</td></tr>
+  </table>
+
+  <p>MOVIES moved its 7,363 files overnight — 7,363 of 7,363, zero errors. SHOWS
+  followed straight through Monday morning and into the afternoon, 6,566 for 6,566.
+  The five errors from chapter 5 are the only ERROR lines the log has ever
+  recorded; the runs that mattered were clean end to end. Sustained throughput of
+  66&nbsp;MiB/s off a single consumer USB drive, for a one-time cost of $1.14 in
+  request fees (chapter 9), is about as undramatic as a five-terabyte upload can
+  be — which was the whole design intent.</p>
+
+  <p>The final transfer landed in the log at 14:43:43 on Monday, August 10, and the
+  run wrapped up around 14:49. The timing turned out to matter.</p>
+</section>
+
+<!-- ================= CH 7 ================= -->
+<section class="chapter" id="ch-7">
+  <div class="ch-eyebrow">Chapter 07</div>
+  <div class="ch-num">07</div>
+  <h2>The crash</h2>
+  <div class="ch-rule"></div>
+
+  <p>A little after three that same afternoon, pickleboy froze solid. Then it froze
+  again. Then the entire media library appeared to be gone. None of these things
+  had anything to do with the upload — and everything to do with why backups get
+  taken in the first place.</p>
+
+  <h3>How a grep becomes a 12.4&nbsp;GB process</h3>
+
+  <p>The trigger was an AI coding session doing reconnaissance in this very
+  project's directory. On this box, <span class="mono">grep</span> in an
+  interactive shell is not GNU grep: a shell function in
+  <span class="mono">~/.bashrc</span> reroutes it through the coding tool's own
+  search binary. The session ran a pattern of a very particular shape against a
+  202&nbsp;KB HTML report — one whose base64-embedded fonts put 61,000
+  characters on a single line:</p>
+
+  <div class="pre-label">the command — reproduced as text; do not run it</div>
+  <pre>grep -oE '[^&lt;&gt;]{0,90}(\$0\.[0-9]+[^&lt;&gt;]{0,50}|Bulk[^&lt;&gt;]{0,60}|48 hour[^&lt;&gt;]{0,40}
+  |12 hour[^&lt;&gt;]{0,40}|egress[^&lt;&gt;]{0,60}|per GB[^&lt;&gt;]{0,40})' \
+  ~/rclone-backups/artifacts/the-actual-bill.html | sort -u | head -40</pre>
+
+  <p>Bounded-repetition quantifiers, feeding a six-way alternation, applied at
+  every position of a 61,000-character line: the search space explodes
+  combinatorially. The process climbed to <b>12.4&nbsp;GB of resident memory and
+  98.8% CPU</b> — on a box with 15&nbsp;GB of RAM, 4&nbsp;GB of swap, and, at the
+  time, no userspace out-of-memory protection at all. The kernel's own OOM killer
+  never fired; the machine simply thrashed to a standstill. At <b>15:20:40</b>,
+  pickleboy stopped responding entirely. Hard power cycle.</p>
+
+  <p>It happened <em>twice</em> because the session's harness auto-retried the
+  failed step after the reboot: same file, same pattern, same result. The second
+  attempt was actually caught live — the process visible at 12.4&nbsp;GB before the
+  box went under at <b>15:34:54</b>. Second hard power cycle. By 15:38 the machine
+  was up and stable, the offending session killed.</p>
+
+  <h3>Then the library vanished</h3>
+
+  <p>The freezes were the cause; the frightening part was the effect. The two hard
+  power cycles caught the 8TB NTFS drive mid-write and set its <b>dirty bit</b> —
+  the volume's own flag that it wasn't cleanly unmounted. The
+  <span class="mono">ntfs3</span> kernel driver refuses to mount a dirty volume
+  read-write. And here is the trap: when the mount silently fails at boot,
+  <span class="mono">/mnt/media/STORAGE</span> still exists — as the empty
+  directory on the root SSD that the drive normally mounts over. Every path
+  resolves. Every tool reports an empty directory. Jellyfin dutifully showed a
+  library of nothing. From the couch, and from the shell, it looked exactly like
+  5.1TB had been deleted.</p>
+
+  <p>Diagnosis took discipline precisely because the failure was dressed as
+  catastrophe: <span class="mono">lsblk</span> and <span class="mono">blkid</span>
+  showed the volume intact and correctly sized; the kernel log showed
+  <span class="mono">ntfs3</span> declining the mount, naming the dirty bit. The
+  fix was proportionate to the actual fault, chosen after enumerating what each
+  repair tool would write: <span class="mono">ntfsfix -d</span> — clear the dirty
+  bit, empty the journal, repair the mirror of the master file table's first
+  records (the damaged record turned out to be the one holding the volume-dirty
+  flag itself). Remount: 5.1T used, 1,329 movies, 203 shows, all present. One
+  Jellyfin container restart later, the household was watching TV again.</p>
+
+  <p><b>Zero data loss. About 25 minutes between "it's all gone" and "it's all
+  back."</b> The follow-up hardening landed the same evening:
+  <span class="mono">earlyoom</span> now runs on the box — a runaway process gets
+  killed before it can take the machine down, which removes the entire
+  freeze&rarr;power-cycle&rarr;dirty-bit chain at its first link. The service
+  status script also now asserts the mounts directly, so a failed mount can never
+  again impersonate an empty library.</p>
+
+  <h3>Thirty-one minutes</h3>
+
+  <p>The upload finished at roughly 14:49. The first freeze hit at 15:20:40.
+  <b>For thirty-one minutes, this backup was a completed project; then it was,
+  briefly, the only copy of the library that appeared to exist.</b> The crash was
+  a false alarm — the drive was fine — but nobody knew that during the
+  twenty-five minutes it took to prove. What the backup bought, on day one, was
+  the difference between "we may have just lost five terabytes of curation" and
+  "worst case, we restore." It has already earned its keep, and it has never been
+  read from.</p>
+
+  <figure>
+    <img src="figures/fig-timeline.svg" alt="Timeline of August 8-10: build, failed first run, the fix, the 22-hour upload, then a zoom on the afternoon of August 10 showing the 31-minute gap between upload completion and the first freeze, the two freezes, recovery, and reconciliation.">
+    <figcaption><span class="fig-num">Figure 2</span> — The whole arc, and the
+    afternoon in close-up. The bracket marks the 31 minutes between the upload
+    wrapping and the first freeze.</figcaption>
+  </figure>
+</section>
+
+<!-- ================= CH 8 ================= -->
+<section class="chapter" id="ch-8">
+  <div class="ch-eyebrow">Chapter 08</div>
+  <div class="ch-num">08</div>
+  <h2>Proof</h2>
+  <div class="ch-rule"></div>
+
+  <p>An unverified backup is a hope, not a backup. Three hours after the upload —
+  and one recovered "disaster" later — the archive was reconciled against the
+  local library it claims to protect. Independently: fresh listings from S3, walked
+  against the actual files on disk, not against the upload's own logs.</p>
+
+  <table class="data">
+    <tr><th>Check</th><th class="num">Result</th></tr>
+    <tr><td>MOVIES objects, local &rarr; remote</td><td class="num">7,363 &rarr; 7,363</td></tr>
+    <tr><td>SHOWS objects, local &rarr; remote</td><td class="num">6,566 &rarr; 6,566</td></tr>
+    <tr><td>MOVIES bytes</td><td class="num">3,612,780,382,420 — identical</td></tr>
+    <tr><td>SHOWS bytes</td><td class="num">1,900,911,285,394 — identical</td></tr>
+    <tr><td>Per-file check, both legs (<span class="mono">rclone check --one-way --size-only</span>)</td><td class="num">13,929 matching · <b>0 differences</b></td></tr>
+    <tr><td>Storage class, full census</td><td class="num">13,929 / 13,929 DEEP_ARCHIVE</td></tr>
+    <tr><td>Bucket versioning</td><td class="num">Enabled</td></tr>
+    <tr><td>Orphaned multipart uploads</td><td class="num">none</td></tr>
+    <tr><td>Top-level prefixes</td><td class="num">MOVIES/ and SHOWS/ only</td></tr>
+  </table>
+
+  <p>Total: 5,513,691,667,814 bytes — 5,135 GiB — matching the chapter 2
+  measurement. The whole pass is read-only listings, costing well under a cent.</p>
+
+  <h3>Why the totals alone would not have been proof</h3>
+
+  <p>The aggregate match is necessary but not sufficient, and treating it as
+  sufficient is the classic verification mistake. Counts and byte-sums can hide
+  <em>compensating errors</em>: one file missing, plus one extra file of the same
+  size, nets to zero in both columns. The per-file pass is what closes that hole —
+  every one of the 13,929 files individually confirmed present at its exact size.
+  Only the combination proves the archive.</p>
+
+  <h3>Why the storage-class check is a census, not a sample</h3>
+
+  <p>All 13,929 objects were checked for storage class, not a sample. Storage class
+  is set by a single line of remote config; if that line ever failed to apply, the
+  failure would be systematic, not random — and objects quietly sitting in S3
+  Standard bill at roughly 23 times the rate. A sample proves the config was right
+  for the sample; the census proves the $5.08 cost model, which is the thing
+  actually being protected.</p>
+
+  <figure>
+    <img src="figures/fig-verification.svg" alt="The eight checks of verify-backup.sh as a ladder, each paired with what it proves, with a summary bar: 0 differences, 13,929 of 13,929 objects, 100% Deep Archive.">
+    <figcaption><span class="fig-num">Figure 3</span> — The eight checks and what
+    each one actually proves. Check 1 exists because of chapter 7: an unmounted
+    drive impersonates an empty library, and every other check inherits its
+    answer.</figcaption>
+  </figure>
+
+  <h3>The flag that must never be added</h3>
+
+  <p>The per-file check compares sizes, not hashes — <span class="mono">--size-only</span>
+  — and that is deliberate, not a shortcut. Computing a hash requires reading the
+  object's body, and Deep Archive bodies cannot be read without first paying to
+  restore them. rclone's <span class="mono">--download</span> flag would attempt
+  exactly that: adding it to this check would turn a sub-cent listing into a
+  multi-hundred-dollar retrieval of the entire archive. The prohibition is written
+  into the script's header comment, this report, and the project docs — three
+  places, because it is the one way a routine verification can cost real money.</p>
+
+  <h3>Now repeatable — and hardened by review</h3>
+
+  <p>The reconciliation lives on as <span class="mono">verify-backup.sh</span>
+  (Appendix A): eight checks, PASS/FAIL, safe to run anytime. Before it was
+  committed, two independent AI review passes audited it and converged on the same
+  defect: two checks keyed their PASS on empty command output, so an AWS failure —
+  expired credentials, a network blip — would print PASS on a check that never ran.
+  A verification script that fails open is worse than none. Both checks now fail
+  closed, and the review also added the eighth check (top-level prefixes) so the
+  script actually re-proves everything the docs claim it does. Chapter 5's lesson,
+  applied to the tool that exists because of chapter 5's lesson.</p>
+
+  <h3>What is still not proven</h3>
+
+  <p>Honesty section. Three things this verification deliberately does not
+  establish: <b>restorability end-to-end</b> — RestoreObject has been granted and
+  permission-tested but never exercised, because drilling it costs real money
+  (chapter 10); <b>bit-perfect content</b> — size-match is strong but is not a
+  hash, and hashing requires that same paid restore; and <b>the keys' rotation
+  discipline</b> — static credentials don't expire, so their safety rests on the
+  documented yearly rotation (chapter 11) actually happening. Known, priced,
+  accepted.</p>
+</section>
+
+<!-- ================= CH 9 ================= -->
+<section class="chapter" id="ch-9">
+  <div class="ch-eyebrow">Chapter 09</div>
+  <div class="ch-num">09</div>
+  <h2>The bill</h2>
+  <div class="ch-rule"></div>
+
+  <p>Every figure in this chapter was re-derived against AWS's published pricing
+  during the build's cost audit, then reconciled against the earlier estimates.
+  The currency of this project is the monthly number: <b>$5.08</b>.</p>
+
+  <h3>Getting it in: $1.14, and the $4.78 that config saved</h3>
+
+  <p>Deep Archive charges for requests, and a five-terabyte upload makes a lot of
+  them. At rclone's default 5&nbsp;MB chunk size, the multipart math lands at
+  $5.92. One config line — <span class="mono">chunk_size = 64M</span> — cuts the
+  part count from hundreds of thousands to 82,384 and the bill to <b>$1.14</b>,
+  paid once:</p>
+
+  <table class="data">
+    <tr><th>Component</th><th class="num">Count</th><th class="num">Cost</th></tr>
+    <tr><td>Whole-file PUTs (files under 200&nbsp;MiB)</td><td class="num">10,648</td><td class="num">$0.532</td></tr>
+    <tr><td>Multipart parts, 64&nbsp;MB each</td><td class="num">82,384</td><td class="num">$0.412</td></tr>
+    <tr><td>Multipart completes</td><td class="num">3,281</td><td class="num">$0.164</td></tr>
+    <tr><td>Post-upload verification (listings)</td><td class="num">&mdash;</td><td class="num">$0.02</td></tr>
+    <tr><td>Multipart initiates</td><td class="num">3,281</td><td class="num">$0.016</td></tr>
+    <tr class="total"><td>One-time total</td><td class="num"></td><td class="num">$1.14</td></tr>
+  </table>
+
+  <p>A footnote that surprised: multipart <em>parts</em> bill at S3 Standard's
+  request rate even when destined for Deep Archive — the parts technically live in
+  Standard until the upload completes. The original back-of-envelope had this
+  wrong by an order of magnitude ("roughly $50 vs roughly $4"); the audit's
+  re-derivation ($5.92 vs $1.14) is what got committed to config.</p>
+
+  <h3>Keeping it: $5.08 a month</h3>
+
+  <p>Deep Archive in us-west-2 runs $0.00099 per GB-month. For this library's
+  5,135.0 GB that is <b>$5.08 a month, $61.00 a year</b> — plus about $0.003 a
+  month for the 40&nbsp;KB of metadata S3 keeps per archived object. The same
+  bytes in S3 Standard would run $118.11 a month, $1,417.26 a year. An earlier
+  pre-measurement estimate said $5.17; the measured library came in 2% under it.</p>
+
+  <figure>
+    <img src="figures/fig-costs.svg" alt="Three cost panels: monthly Deep Archive versus S3 Standard bars showing a 23x gap; the one-time upload bill of $1.14 versus $5.92 at default chunk size with its five components; and the roughly $585 full-restore bill dominated by egress at 77%.">
+    <figcaption><span class="fig-num">Figure 4</span> — The three bills that
+    matter: monthly (the sliver), one-time (the config win), and the disaster
+    scenario (the egress problem).</figcaption>
+  </figure>
+
+  <h3>Getting it out: the ~$585 disaster</h3>
+
+  <p>The number that keeps this design honest: restoring and downloading the
+  entire archive costs roughly <b>$585</b> at standard tier (~12-hour restores) or
+  <b>$494</b> at bulk (~48-hour). The breakdown is not what intuition suggests —
+  the Glacier retrieval itself is $102.70. The dominant cost is <b>egress</b>:
+  moving 5.1TB out of AWS onto the box costs $453.15, fully 77% of the bill. Add
+  the temporary Standard-rate copy that exists during the restore window ($27.56)
+  and request fees ($1.40), and the lesson generalizes: with any cloud archive,
+  <em>the exit door is the expensive part, and it's priced by your ISP's
+  competitor.</em></p>
+
+  <h3>Three years, all-in</h3>
+
+  <table class="data">
+    <tr><th>Scenario</th><th class="num">Year 1</th><th class="num">3 years</th></tr>
+    <tr><td>Library frozen at today's size</td><td class="num">$62.40</td><td class="num">$185</td></tr>
+    <tr><td>Growing +25 GiB/month</td><td class="num">$64.40</td><td class="num">$201</td></tr>
+    <tr><td>Growing +100 GiB/month</td><td class="num">$70.10</td><td class="num">$251</td></tr>
+  </table>
+
+  <p>Two closing sanity checks. Walking away: deleting the whole archive inside
+  the first 180 days would cost $30.50 in early-deletion fees; after day 180,
+  zero — there is no meaningful lock-in. And the 180-day fee itself was
+  investigated and defanged: it bills only on an actual permanent delete, which
+  this project's no-delete IAM posture plus versioning means has no path to ever
+  trigger. Replacing a file within 180 days just versions it — ordinary storage,
+  no penalty. The photo library was priced under the same lens and deliberately
+  left out of scope; photos accumulate continuously rather than in curated
+  batches, and deserved their own design rather than a bolt-on here. That design
+  has since shipped as its own project — a separate bucket in Glacier Instant
+  Retrieval, chosen for millisecond partial restores.</p>
+</section>
+
+<!-- ================= CH 10 ================= -->
+<section class="chapter" id="ch-10">
+  <div class="ch-eyebrow">Chapter 10</div>
+  <div class="ch-num">10</div>
+  <h2>Getting it back</h2>
+  <div class="ch-rule"></div>
+
+  <p>First, the honest framing, because this is the one part of the system that has
+  never run for real: <b>the restore path is designed, permission-scoped, and
+  priced — not drilled.</b> The scoped user's <span class="mono">GetObject</span>
+  authorization is genuinely tested (the smoke test's read-back check authorizes
+  against the same path). <span class="mono">RestoreObject</span> has only ever
+  been granted. Drilling it means paying a retrieval fee plus a temporary
+  Standard-rate copy, and that cost — not neglect — is why it hasn't happened.
+  The permissions were deliberately granted up front so that a real emergency
+  never requires a mid-crisis IAM change.</p>
+
+  <p>One mechanical fact makes everything else cheaper to reason about:
+  <span class="mono">HeadObject</span> — metadata, sizes, existence — works on
+  archived objects for free. Only fetching an object's <em>body</em> requires a
+  restore. That is why chapter 8's verification costs pennies, and why checking
+  on the archive never risks triggering retrieval charges by accident.</p>
+
+  <h3>The procedure</h3>
+
+  <ul>
+    <li><b>1 — Request the restore.</b> <span class="mono">aws s3api restore-object</span>
+    (or <span class="mono">rclone backend restore</span>), per object or scripted
+    across a prefix. Standard tier: the object becomes downloadable in ~12 hours.
+    Bulk tier: ~48 hours, at roughly $90 less across a full-library job.</li>
+    <li><b>2 — Download.</b> Once restored, an ordinary
+    <span class="mono">GetObject</span> — for a full disaster, an
+    <span class="mono">rclone copy</span> pointed the other direction.</li>
+    <li><b>3 — Expect the cost shape.</b> The retrieval fee and the temporary
+    Standard-rate copy (billed while it exists) are the bulk of the price; the
+    download's request fees are noise. Chapter 9's numbers: ~$585 standard,
+    ~$494 bulk, for everything.</li>
+  </ul>
+
+  <p>Proportion matters: the likely real-world restore is not the disaster but a
+  single film — one <span class="mono">restore-object</span> call, a 12-to-48-hour
+  wait, and cents. The full-library figures are the worst case, priced so the
+  worst case is a known number instead of a surprise.</p>
+</section>
+
+<!-- ================= CH 11 ================= -->
+<section class="chapter" id="ch-11">
+  <div class="ch-eyebrow">Chapter 11</div>
+  <div class="ch-num">11</div>
+  <h2>Where it stands</h2>
+  <div class="ch-rule"></div>
+
+  <p>As of the evening of August 10, 2026: complete, verified, and quiet. The
+  operating cadence from here is deliberately minimal. New media accumulates
+  locally; every so often, <span class="mono">pickleboy-backup.sh</span> re-runs —
+  additive, idempotent, transferring only what's new — and each backup run gets
+  followed by <span class="mono">verify-backup.sh</span>. Verification is paired
+  with backups, not with the calendar: Deep Archive does not rot, so a
+  timer-driven check would only re-prove the previous one.</p>
+
+  <p>One piece of scheduled maintenance exists. The backup user's static keys
+  don't expire, and heavier machinery to fix that (certificate-based auth, a
+  private CA) was priced and declined as disproportionate — the no-delete,
+  single-bucket scope already bounds what a leaked key can do. The accepted
+  control is a yearly rotation:</p>
+
+  <pre>aws iam create-access-key --user-name pickleboy --profile pickleboy
+aws configure --profile pickleboy-backup   # paste the new pair interactively, never inline
+./test-iam-user.sh          # list/put/get pass; delete still denied
+# after one clean backup run on the new key:
+aws iam update-access-key --user-name pickleboy --access-key-id &lt;OLD&gt; --status Inactive --profile pickleboy
+aws iam delete-access-key --user-name pickleboy --access-key-id &lt;OLD&gt; --profile pickleboy</pre>
+
+  <p>Two adjacent projects sat deliberately outside this one's scope. The first
+  has already shipped — the very next morning, the Immich photo library got the
+  backup design it deserved, and it gets its own telling in the next chapter.
+  The second remains genuinely open: the 8TB drive's NTFS formatting — the
+  fragility chapter 7 exposed — can still be addressed. Converting it to a
+  native Linux filesystem was always blocked on "there's nowhere to put 5.1TB
+  while you reformat." There is now. The existence of a verified offsite copy is
+  what makes retiring the last fragile piece of this stack a routine project
+  instead of a leap.</p>
+
+  <p>The bottom line, stated the way chapter 8 would demand: for $1.14 down and
+  $61.00 a year, the library's loss scenarios shrank from "months of re-curation,
+  maybe permanent" to "a known procedure and a known bill." The backup was
+  thirty-one minutes old the first time it mattered. It will spend years being
+  boring now — that's what it's for.</p>
+</section>
+
+<!-- ================= CH 12 ================= -->
+<section class="chapter" id="ch-12">
+  <div class="ch-eyebrow">Chapter 12</div>
+  <div class="ch-num">12</div>
+  <h2>The warm archive</h2>
+  <div class="ch-rule"></div>
+
+  <p>The photo library was set aside twice in this report — in chapter 1 for
+  changing differently, in chapter 9 for deserving its own design. Behind both
+  stood a quieter technical claim, made in the project's cost research rather
+  than in these pages: that Deep Archive's per-object overhead would punish a
+  library of many small files. Reopened, the claim was priced and killed — the
+  overhead doesn't reach a dollar a month until about 4.9 million objects,
+  roughly 180 times this library's count. What actually made the photos a
+  different project was never the object count. It was what a restore is
+  <em>for</em>.</p>
+
+  <p>So on August 11 — the movies archive a day old, the crash not yet a day
+  cold — the Immich tree at <span class="mono">/mnt/media/PICTURES</span> got
+  its own design: 173&nbsp;GiB and 82,455 objects, a second bucket, a second
+  remote, a second policy, and the opposite storage class.</p>
+
+  <p>The plumbing is the movie architecture, copied deliberately: a fresh
+  bucket (<span class="mono">s3-glacier-ir-pictures-123456789012-us-west-2</span>)
+  so the movie bucket's verified invariants stay untouched; versioning on
+  before the first byte; a second rclone remote pinning
+  <span class="mono">GLACIER_IR</span> and the 64&nbsp;MB chunks in config —
+  and carrying no <span class="mono">acl</span> line, chapter 5's lesson
+  applied this time at zero cost. The same backup user gained a second inline
+  policy, a structural copy of Appendix B scoped to the new bucket, with the
+  same absence at its center: no delete action of any kind. A separate policy,
+  not an edit: a mistake here can only break the new project. The smoke test
+  passed 5/5, delete denied where it must be.</p>
+
+  <h3>Warm, on purpose</h3>
+
+  <p>Deep Archive is priced for copies you hope never to read; chapter 9's ~$585
+  exit bill is what that hope costs when it fails. Photos invert the bet. The
+  likely request against a photo archive is not a disaster — it is one album,
+  needed today, on what is already a bad day, and a 12-to-48-hour
+  restore-request queue is exactly the wrong shape for that. S3 Glacier Instant
+  Retrieval keeps the same bytes readable in milliseconds: getting an album back
+  is one <span class="mono">rclone copy</span> pointed the other direction — no
+  restore dance, no temporary Standard-rate copy billed alongside. The premium
+  over Deep Archive, at this library's size: about 52 cents a month.</p>
+
+  <p>One argument for the class died in review and stays dead on purpose: that
+  Instant Retrieval's 90-day minimum-duration floor suits a living, culled
+  photo library better than Deep Archive's 180-day one. Neither floor matters —
+  nothing here is ever deleted, so no floor can ever bill. The decision stands
+  on restore ergonomics alone, recorded that way because a decision propped on
+  a wrong reason falls over badly later, even when it's the right decision.</p>
+
+  <h3>The widening</h3>
+
+  <p>Scope was first locked as originals-only — 131&nbsp;GiB, 26,652 files —
+  on chapter 9's own logic: thumbnails and transcodes are derived data, and
+  derived data buys nothing a restore can't rebuild. Reopened on a direct
+  question — <em>did we agree on backing up the entire PICTURES
+  directory?</em> — it flipped. What that logic waves away is 42&nbsp;GiB of
+  thumbnails and encoded video that a freshly restored Immich would have to
+  regenerate before the library looks like itself again. The full tree runs
+  about $0.70 a month against originals-only's $0.53, and $1.65 of one-time
+  PUT fees against 55 cents: for roughly two dollars a year, a full restore
+  comes back <em>warm</em> — every thumbnail already drawn, every transcode
+  already done.</p>
+
+  <p>The tree carries the database too: albums, people, faces, and edits live
+  in Immich's Postgres, not in the image files, so every run ships the newest
+  one or two nightly dumps alongside the originals — photos without the
+  database restore as a pile, not a library.</p>
+
+  <h3>Reviews with teeth</h3>
+
+  <p>Chapter 5 left this project a rule: a claim can survive any number of
+  reviews that never touch the code path it's about. The pictures build is the
+  first thing here built under that rule from the start — two independent AI
+  review passes pointed at the plan with identical prompts, a third at the
+  scripts as built. All three returned the same verdict, ship with fixes, and
+  forty-four findings between them, the useful kind.</p>
+
+  <p>One catch paid for the whole exercise: the plan was missing
+  <span class="mono">--fast-list</span>, and against Immich's hash-bucketed
+  fan-out of 33,000 directories, every future backup run would have opened with
+  roughly 23,000 LIST requests instead of 27 — a silent,
+  three-orders-of-magnitude tax on every run, forever. And the review of the
+  built scripts found the ironic one: the mount guard, the line that exists to
+  stop a silent
+  failure, itself failed silently under cron — aborting before the log file it
+  was meant to abort into existed. A guard that cries into a void; it logs
+  first now. Where chapter 5's reviews only ever read, this build's proof
+  wrote: the pre-run smoke test pushed two live database dumps through the real
+  remote to their final keys and read back the one field that proves the
+  config, <span class="mono">StorageClass: GLACIER_IR</span>.</p>
+
+  <h3>Two guards, two failure modes</h3>
+
+  <p>The mount guard itself was a review finding — both plan passes arrived at
+  it independently. The script is built for unattended cron, which the movie
+  script never was, and a static library makes unattended failure uniquely
+  quiet: "0 files transferred" is what a healthy run looks like, and an
+  unmounted drive produces the same silence — chapter 7's empty-directory trap,
+  again. So a <span class="mono">mountpoint</span> check opens every run and
+  aborts <em>into its own log</em> — <span class="mono">=== run ABORTED ===</span>
+  — rather than into a discarded stdout; it has since been ported back to the
+  movie script too.
+  <span class="mono">earlyoom</span>, installed the evening of the crash, is
+  not a second layer of the same defense: it keeps a runaway process from
+  taking the box down, protecting the machine, while the guard keeps a dead
+  mount from impersonating an empty library, protecting the truth of the log.
+  Different failure modes, one shared lesson from August 10: failures must be
+  loud.</p>
+
+  <h3>Four hours, then the proof</h3>
+
+  <p>The upload ran the morning of August 11: six sequential
+  <span class="mono">rclone copy</span> legs — upload, library, profile,
+  thumbs, encoded-video, backups — started 11:01:03, finished 15:05:44. Four
+  hours, four minutes, forty-one seconds; <span class="mono">status=0</span>;
+  zero errors, zero retries. Throughput averaged about 12&nbsp;MiB/s, under a
+  fifth of the movie run's rate and expected: 82,455 files averaging two
+  megabytes are bound by request latency, not bandwidth. The hedge going in
+  was four to six hours; the run closed at its optimistic edge.</p>
+
+  <p>Verification followed chapter 8's playbook the same afternoon — fresh
+  listings from S3, reconciled per-file against the drive, no trust extended
+  to the upload's own log:</p>
+
+  <table class="data">
+    <tr><th>Check</th><th class="num">Result</th></tr>
+    <tr><td>Objects, local &rarr; remote</td><td class="num">82,455 &rarr; 82,455</td></tr>
+    <tr><td>upload/ bytes — the originals</td><td class="num">140,570,940,085 — identical</td></tr>
+    <tr><td>thumbs/ bytes</td><td class="num">8,604,628,024 — identical</td></tr>
+    <tr><td>encoded-video/ bytes</td><td class="num">35,715,967,952 — identical</td></tr>
+    <tr><td>library/ + profile/ markers</td><td class="num">13 B each — identical</td></tr>
+    <tr><td>Per-file check, five content prefixes (<span class="mono">rclone check</span>)</td><td class="num"><b>0 differences</b></td></tr>
+    <tr><td>Storage class, full census</td><td class="num">82,455 / 82,455 GLACIER_IR</td></tr>
+    <tr><td>Bucket versioning</td><td class="num">Enabled</td></tr>
+    <tr><td>Orphaned multipart uploads</td><td class="num">none</td></tr>
+    <tr><td>Top-level prefixes</td><td class="num">exactly the six expected</td></tr>
+  </table>
+
+  <p>The dumps prefix gets a freshness assertion instead of byte-equality —
+  local retention is a rolling window, so the script checks the newest
+  bucket-side dump is under 35 days old. The whole pass lives on as
+  <span class="mono">verify-pictures.sh</span>: eight checks, PASS/FAIL,
+  read-only, under a cent — chapter 8's convention, run after backups, never
+  on a timer. And chapter 8's forbidden flag is more dangerous here, not less:
+  against Deep Archive <span class="mono">--download</span> fails loudly, but
+  Instant Retrieval would serve every byte without complaint and quietly bill
+  about five dollars. What replaces it is something the movies never got —
+  dropping <span class="mono">--size-only</span> makes rclone compare MD5
+  checksums from object metadata, a real content check with zero bytes
+  downloaded, validated live before the run. The warm class verifies deeper,
+  for free.</p>
+
+  <h3>The bill, in single digits</h3>
+
+  <p>Instant Retrieval in us-west-2 runs $0.004 per GB-month — four times Deep
+  Archive's rate, on a library one-thirtieth the movies' size:</p>
+
+  <table class="data">
+    <tr><th>Scenario</th><th class="num">Cost</th></tr>
+    <tr><td>Steady-state storage</td><td class="num">~$0.70 / mo · ~$8.40 / yr</td></tr>
+    <tr><td>One-time upload PUT fees</td><td class="num">~$1.65</td></tr>
+    <tr><td>Restoring one album</td><td class="num">pennies — $0.03/GB, egress inside the free tier</td></tr>
+    <tr><td>Restoring everything, in a hurry</td><td class="num">~$12.80</td></tr>
+    <tr><td>Restoring everything, patiently</td><td class="num">~$6.10 — across two months of free egress</td></tr>
+  </table>
+
+  <p>The number that reframes the storage-class trade: the movies' full-disaster
+  exit costs roughly $585, because five terabytes of egress dwarfs everything
+  else. The pictures' worst case is twelve dollars and eighty cents — 173 GiB
+  slips mostly inside AWS's monthly 100&nbsp;GB free-egress allowance, and
+  entirely inside two of them. The expensive exit door chapter 9 warned about
+  is, for this library, a cat flap.</p>
+
+  <h3>The switch left off</h3>
+
+  <p>One thing is deliberately not done. The monthly cron —
+  <span class="mono">30 3 1 * *</span>, 3:30 on the first of the month, ninety
+  minutes after Immich's own nightly database dump — is written, tested, and
+  not installed. Held back by choice, not blocked: the library has been static
+  since February 27 (measured, not assumed), so a schedule has nothing to
+  carry; installing it is a one-line crontab edit the day photos start
+  accumulating again. The accepted worst case once it goes in — a
+  month of new photos in the loss window — is written down the way chapter 8
+  would demand: a limit you've stated is a design; a limit you haven't is a
+  surprise.</p>
+
+  <p>And with that, both drives are covered. The 4TB photo drive now has what
+  the 8TB movie drive got the day before: an offsite copy written by a
+  credential that cannot delete, into a versioned bucket, reconciled
+  file-by-file the same afternoon it landed. The movies archive is built to be
+  cheap and never touched; the photo archive, to be cheap and touched on the
+  worst day of some future year, when "I need that album back" takes one
+  command and a few milliseconds. Cold for the replaceable, warm for the
+  irreplaceable — the same design, bent to what each library is for.</p>
+</section>
+
+<!-- ================= APPENDIX A ================= -->
+<section class="appendix" id="app-a">
+  <div class="app-eyebrow">APPENDIX A</div>
+  <h2>The three scripts</h2>
+  <div class="front-rule"></div>
+
+  <p class="small"><em>All three run on pickleboy, in the project's plain
+  PASS/FAIL house style — no traps, no cleverness, output a human reads. Reproduced
+  verbatim.</em></p>
+
+  <h3>pickleboy-backup.sh — the backup itself</h3>
+  <pre class="long">#!/usr/bin/env bash
+
+
+# Pickleboy media -&gt; S3 Glacier Deep Archive. Additive only; safe to re-run anytime.
+# Uses a scoped IAM user &mdash; no login step, no credential expiry to worry about.
+# Initial 5.1TB run: start inside tmux/screen; if interrupted (network blip, laptop
+# closed), just re-run &mdash; rclone copy only transfers what's missing.
+
+
+export AWS_PROFILE=pickleboy-backup
+
+rclone copy /mnt/media/STORAGE/MOVIES pickleboy-glacier:s3-glacier-test-123456789012-us-west-2-an/MOVIES \
+  --size-only --progress --log-level INFO --log-file "$HOME/rclone-backups/backup.log"
+
+rclone copy /mnt/media/STORAGE/SHOWS pickleboy-glacier:s3-glacier-test-123456789012-us-west-2-an/SHOWS \
+  --size-only --progress --log-level INFO --log-file "$HOME/rclone-backups/backup.log"</pre>
+
+  <h3>verify-backup.sh — the eight-check reconciliation</h3>
+  <pre class="long">#!/usr/bin/env bash
+
+# Reconciles the local Jellyfin library against what's actually in Glacier.
+# 8 checks, read-only and cheap - listings only, well under a cent. Safe to
+# re-run anytime. Best run after a backup, not on a timer: Deep Archive
+# doesn't rot, so a calendar-driven check just re-proves the last one.
+#
+# NEVER add --download to the rclone check calls. Hashes can't be compared
+# against archived objects without restoring them first, and --download would
+# try exactly that - turning this into a multi-hundred-dollar retrieval.
+# --size-only is the point.
+
+BUCKET="s3-glacier-test-123456789012-us-west-2-an"
+PROFILE="pickleboy-backup"
+LOCAL="/mnt/media/STORAGE"
+REMOTE="pickleboy-glacier:$BUCKET"
+
+export AWS_PROFILE="$PROFILE"
+
+echo "=== 1. Media drive mounted (everything below is meaningless if not) ==="
+mountpoint -q "$LOCAL" \
+  &amp;&amp; echo "PASS" || { echo "FAIL - $LOCAL is not mounted, aborting"; exit 1; }
+
+echo "=== 2. Local vs remote totals ==="
+for D in MOVIES SHOWS; do
+  echo "--- $D ---"
+  echo "local:  $(find "$LOCAL/$D" -type f | wc -l) files, $(du -sb "$LOCAL/$D" | cut -f1) bytes"
+  echo "remote: $(rclone size "$REMOTE/$D" | tr '\n' ' ')"
+done
+
+echo "=== 3. Per-file reconciliation, MOVIES (should report 0 differences) ==="
+rclone check "$LOCAL/MOVIES" "$REMOTE/MOVIES" --size-only --one-way \
+  &amp;&amp; echo "PASS" || echo "FAIL"
+
+echo "=== 4. Per-file reconciliation, SHOWS (should report 0 differences) ==="
+rclone check "$LOCAL/SHOWS" "$REMOTE/SHOWS" --size-only --one-way \
+  &amp;&amp; echo "PASS" || echo "FAIL"
+
+echo "=== 5. Every object is DEEP_ARCHIVE (guards the cost model) ==="
+STRAY=$(aws s3api list-objects-v2 --bucket "$BUCKET" \
+  --query 'Contents[?StorageClass!=`DEEP_ARCHIVE`].[StorageClass,Key]' --output text 2&gt;&amp;1)
+RC=$?
+if [ $RC -ne 0 ]; then
+  echo "FAIL - aws command failed:"; echo "$STRAY"
+elif [ -z "$STRAY" ]; then
+  echo "PASS"
+else
+  echo "FAIL - not in Deep Archive:"; echo "$STRAY"
+fi
+
+echo "=== 6. Bucket versioning still enabled ==="
+VER=$(aws s3api get-bucket-versioning --bucket "$BUCKET" --query 'Status' --output text)
+[ "$VER" = "Enabled" ] &amp;&amp; echo "PASS" || echo "FAIL - versioning is '$VER'"
+
+echo "=== 7. No orphaned multipart uploads (they bill as storage, invisible to ls) ==="
+MPU=$(aws s3api list-multipart-uploads --bucket "$BUCKET" \
+  --query 'Uploads[].[Initiated,Key]' --output text 2&gt;&amp;1)
+RC=$?
+if [ $RC -ne 0 ]; then
+  echo "FAIL - aws command failed:"; echo "$MPU"
+elif [ -z "$MPU" ] || [ "$MPU" = "None" ]; then
+  echo "PASS"
+else
+  echo "FAIL - orphaned uploads, abort them with: aws s3api abort-multipart-upload"
+  echo "$MPU"
+fi
+
+echo "=== 8. Only MOVIES/ and SHOWS/ at top level (no stray prefixes) ==="
+PREFIXES=$(aws s3api list-objects-v2 --bucket "$BUCKET" --delimiter '/' \
+  --query 'CommonPrefixes[].Prefix' --output text 2&gt;&amp;1)
+RC=$?
+SORTED=$(echo "$PREFIXES" | tr '\t' '\n' | sort | tr '\n' ' ')
+if [ $RC -ne 0 ]; then
+  echo "FAIL - aws command failed:"; echo "$PREFIXES"
+elif [ "$SORTED" = "MOVIES/ SHOWS/ " ]; then
+  echo "PASS"
+else
+  echo "FAIL - unexpected top-level prefixes: $SORTED"
+fi
+
+echo "=== Done ==="</pre>
+
+  <h3>test-iam-user.sh — the policy smoke test</h3>
+  <p class="small"><em>Check 4 is the one that must fail: it proves the delete
+  denial is real, not assumed.</em></p>
+  <pre class="long">#!/usr/bin/env bash
+# Tests the scoped 'pickleboy' IAM user before moving on to rclone (Step 3).
+# Plain S3 calls are enough to prove the policy grants what it should, and
+# blocks what it shouldn't - no need for rclone or Deep Archive yet.
+
+BUCKET="s3-glacier-test-123456789012-us-west-2-an"
+SCOPED_PROFILE="pickleboy-backup"
+ADMIN_PROFILE="pickleboy"
+KEY="iam-test.txt"
+
+echo "=== 1. List bucket (should succeed) ==="
+aws s3 ls "s3://$BUCKET" --profile "$SCOPED_PROFILE" \
+  &amp;&amp; echo "PASS" || echo "FAIL"
+
+echo "=== 2. Upload a test object (should succeed) ==="
+echo "pickleboy iam test $(date)" | aws s3 cp - "s3://$BUCKET/$KEY" --profile "$SCOPED_PROFILE" \
+  &amp;&amp; echo "PASS" || echo "FAIL"
+
+echo "=== 3. Read it back (should succeed) ==="
+aws s3api head-object --bucket "$BUCKET" --key "$KEY" --profile "$SCOPED_PROFILE" \
+  &amp;&amp; echo "PASS" || echo "FAIL"
+
+echo "=== 4. Delete with the scoped user (should FAIL - no delete permission, by design) ==="
+aws s3 rm "s3://$BUCKET/$KEY" --profile "$SCOPED_PROFILE" \
+  &amp;&amp; echo "FAIL (delete should have been denied)" || echo "PASS (delete correctly denied)"
+
+echo "=== 5. Clean up with the admin profile instead (should succeed) ==="
+aws s3 rm "s3://$BUCKET/$KEY" --profile "$ADMIN_PROFILE" \
+  &amp;&amp; echo "PASS" || echo "FAIL"
+
+echo "=== Done ==="</pre>
+</section>
+
+<!-- ================= APPENDIX B ================= -->
+<section class="appendix" id="app-b">
+  <div class="app-eyebrow">APPENDIX B</div>
+  <h2>The IAM policy</h2>
+  <div class="front-rule"></div>
+
+  <p class="small"><em>The complete policy attached to the backup user — 656 bytes.
+  The first statement grants the bucket-level reads the verification script needs;
+  the second grants object writes, reads, and restores. Note what appears nowhere:
+  no <span class="mono">s3:Delete*</span> action of any kind. The additive-only
+  guarantee is this document, not a habit.</em></p>
+
+  <pre class="long">{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ListAndCheckBucket",
+      "Effect": "Allow",
+      "Action": [
+        "s3:ListBucket",
+        "s3:ListBucketMultipartUploads",
+        "s3:GetBucketVersioning"
+      ],
+      "Resource": "arn:aws:s3:::s3-glacier-test-123456789012-us-west-2-an"
+    },
+    {
+      "Sid": "UploadAndRestoreObjects",
+      "Effect": "Allow",
+      "Action": [
+        "s3:PutObject",
+        "s3:GetObject",
+        "s3:RestoreObject",
+        "s3:AbortMultipartUpload",
+        "s3:ListMultipartUploadParts"
+      ],
+      "Resource": "arn:aws:s3:::s3-glacier-test-123456789012-us-west-2-an/*"
+    }
+  ]
+}</pre>
+</section>
+
+<!-- ================= APPENDIX C ================= -->
+<section class="appendix" id="app-c">
+  <div class="app-eyebrow">APPENDIX C</div>
+  <h2>The rclone remote config</h2>
+  <div class="front-rule"></div>
+
+  <p class="small"><em>The working remote, verbatim from
+  <span class="mono">~/.config/rclone/rclone.conf</span>. It contains no secrets —
+  <span class="mono">env_auth</span> means credentials come from the AWS profile at
+  runtime. The most important line is the one that isn't there: no
+  <span class="mono">acl</span> setting of any kind (chapter 5).
+  <span class="mono">storage_class</span> and <span class="mono">chunk_size</span>
+  live here rather than in command flags so they can never be forgotten.</em></p>
+
+  <pre>[pickleboy-glacier]
+type = s3
+region = us-west-2
+storage_class = DEEP_ARCHIVE
+chunk_size = 64M
+provider = AWS
+env_auth = true
+no_check_bucket = true</pre>
+</section>
+
+<!-- ================= APPENDIX D ================= -->
+<section class="appendix" id="app-d">
+  <div class="app-eyebrow">APPENDIX D</div>
+  <h2>Verification transcript</h2>
+  <div class="front-rule"></div>
+
+  <p class="small"><em>A complete, unedited run of
+  <span class="mono">verify-backup.sh</span>, captured the evening of August 10,
+  2026 — the same day as the upload, the crash, and the original reconciliation.
+  Eight checks, eight passes. This is what "verified" means concretely: anyone
+  with the scoped credentials can reproduce this transcript for less than a
+  cent.</em></p>
+
+  <pre class="long">=== 1. Media drive mounted (everything below is meaningless if not) ===
+PASS
+=== 2. Local vs remote totals ===
+--- MOVIES ---
+local:  7363 files, 3612780382420 bytes
+remote: Total objects: 7.363k (7363) Total size: 3.286 TiB (3612780382420 Byte)
+--- SHOWS ---
+local:  6566 files, 1900911285394 bytes
+remote: Total objects: 6.566k (6566) Total size: 1.729 TiB (1900911285394 Byte)
+=== 3. Per-file reconciliation, MOVIES (should report 0 differences) ===
+2026/08/10 21:39:23 NOTICE: S3 bucket s3-glacier-test-123456789012-us-west-2-an path MOVIES: 0 differences found
+2026/08/10 21:39:23 NOTICE: S3 bucket s3-glacier-test-123456789012-us-west-2-an path MOVIES: 7363 matching files
+PASS
+=== 4. Per-file reconciliation, SHOWS (should report 0 differences) ===
+2026/08/10 21:39:29 NOTICE: S3 bucket s3-glacier-test-123456789012-us-west-2-an path SHOWS: 0 differences found
+2026/08/10 21:39:29 NOTICE: S3 bucket s3-glacier-test-123456789012-us-west-2-an path SHOWS: 6566 matching files
+PASS
+=== 5. Every object is DEEP_ARCHIVE (guards the cost model) ===
+PASS
+=== 6. Bucket versioning still enabled ===
+PASS
+=== 7. No orphaned multipart uploads (they bill as storage, invisible to ls) ===
+PASS
+=== 8. Only MOVIES/ and SHOWS/ at top level (no stray prefixes) ===
+PASS
+=== Done ===</pre>
+</section>
+
+</body>
+</html>

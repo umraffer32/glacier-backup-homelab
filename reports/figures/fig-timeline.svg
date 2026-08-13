@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="482" height="248" viewBox="0 0 482 248">
+  <!-- Project timeline, Aug 8-10 2026, with a zoom on the afternoon of Aug 10.
+       Top band: x = 20 + hours_since(Aug 8 20:00) * 9.208 (48h across 442u).
+       Zoom band: x = 20 + minutes_since(14:30) * 2.105 (210min across 442u). -->
+  <rect x="0" y="0" width="482" height="248" fill="#ffffff"/>
+
+  <!-- ===== top band ===== -->
+  <!-- day boundaries -->
+  <line x1="56.8" y1="30" x2="56.8" y2="76" stroke="#e3ebf1" stroke-width="0.75"/>
+  <line x1="278" y1="30" x2="278" y2="76" stroke="#e3ebf1" stroke-width="0.75"/>
+  <text x="24" y="112" font-family="IBM Plex Sans, DejaVu Sans, sans-serif" font-size="7" fill="#4a5157">Aug 8</text>
+  <text x="60.8" y="112" font-family="IBM Plex Sans, DejaVu Sans, sans-serif" font-size="7" fill="#4a5157">Aug 9</text>
+  <text x="282" y="112" font-family="IBM Plex Sans, DejaVu Sans, sans-serif" font-size="7" fill="#4a5157">Aug 10</text>
+
+  <!-- axis -->
+  <line x1="20" y1="64" x2="462" y2="64" stroke="#cfd6db" stroke-width="1"/>
+
+  <!-- upload span (16:41 Aug 9 -> ~14:49 Aug 10) -->
+  <rect x="210.4" y="60" width="203.8" height="8" fill="#2e5570"/>
+  <text x="248" y="80" font-family="IBM Plex Sans, DejaVu Sans, sans-serif" font-size="7" fill="#2e5570">the upload — 22h 02m, 5.1TB</text>
+
+  <!-- events: build / fail / fix -->
+  <line x1="29" y1="52" x2="29" y2="64" stroke="#4a5157" stroke-width="1"/>
+  <text x="22" y="28" font-family="IBM Plex Sans, DejaVu Sans, sans-serif" font-size="7" fill="#1a1d21">IAM user built + smoke-tested</text>
+  <line x1="29" y1="30" x2="29" y2="52" stroke="#e3ebf1" stroke-width="0.75"/>
+
+  <line x1="142.6" y1="64" x2="142.6" y2="80" stroke="#9c3f2c" stroke-width="1"/>
+  <text x="86" y="90" font-family="IBM Plex Sans, DejaVu Sans, sans-serif" font-size="7" fill="#9c3f2c">09:19 first run fails — the acl bug</text>
+
+  <line x1="188" y1="46" x2="188" y2="64" stroke="#4a5157" stroke-width="1"/>
+  <text x="146" y="42" font-family="IBM Plex Sans, DejaVu Sans, sans-serif" font-size="7" fill="#1a1d21">14:15 bug fixed · first commit</text>
+
+  <line x1="210.4" y1="64" x2="210.4" y2="94" stroke="#2e5570" stroke-width="1"/>
+  <text x="168" y="103" font-family="IBM Plex Sans, DejaVu Sans, sans-serif" font-size="7" fill="#1a1d21">16:41 MOVIES leg starts</text>
+
+  <line x1="347.8" y1="50" x2="347.8" y2="60" stroke="#2e5570" stroke-width="1"/>
+  <text x="306" y="46" font-family="IBM Plex Sans, DejaVu Sans, sans-serif" font-size="7" fill="#1a1d21">07:36 handoff to SHOWS</text>
+
+  <line x1="414.2" y1="20" x2="414.2" y2="60" stroke="#2e5570" stroke-width="1"/>
+  <text x="352" y="16" font-family="IBM Plex Sans, DejaVu Sans, sans-serif" font-size="7" fill="#1a1d21">~14:49 upload complete</text>
+
+  <!-- zoom window on the top band -->
+  <rect x="411.3" y="56" width="32.3" height="16" fill="#e3ebf1" fill-opacity="0.55" stroke="#2e5570" stroke-width="0.5" stroke-dasharray="2 2"/>
+
+  <!-- zoom band caption -->
+  <text x="20" y="150" font-family="IBM Plex Sans, DejaVu Sans, sans-serif" font-size="7" font-weight="600" fill="#4a5157">THE SAME AFTERNOON, 14:30 – 18:00</text>
+
+  <!-- ===== zoom band ===== -->
+  <line x1="20" y1="196" x2="462" y2="196" stroke="#cfd6db" stroke-width="1"/>
+
+  <!-- events -->
+  <!-- 14:49 wraps -->
+  <line x1="60" y1="172" x2="60" y2="196" stroke="#2e5570" stroke-width="1.2"/>
+  <text x="16" y="168" font-family="IBM Plex Sans, DejaVu Sans, sans-serif" font-size="7" fill="#1a1d21">~14:49 upload run wraps</text>
+  <!-- 15:20:40 freeze 1 -->
+  <line x1="126.7" y1="184" x2="126.7" y2="196" stroke="#9c3f2c" stroke-width="1.2"/>
+  <text x="92" y="181" font-family="IBM Plex Sans, DejaVu Sans, sans-serif" font-size="7" fill="#9c3f2c">15:20:40 freeze #1</text>
+  <!-- 15:34:54 freeze 2 -->
+  <line x1="156.6" y1="196" x2="156.6" y2="208" stroke="#9c3f2c" stroke-width="1.2"/>
+  <text x="140" y="217" font-family="IBM Plex Sans, DejaVu Sans, sans-serif" font-size="7" fill="#9c3f2c">15:34:54 freeze #2</text>
+  <!-- reboots, unlabeled micro-ticks -->
+  <line x1="133.8" y1="192" x2="133.8" y2="196" stroke="#4a5157" stroke-width="0.8"/>
+  <line x1="164.2" y1="192" x2="164.2" y2="196" stroke="#4a5157" stroke-width="0.8"/>
+  <text x="216" y="217" font-family="IBM Plex Sans, DejaVu Sans, sans-serif" font-size="6.8" fill="#4a5157">hard reboots 15:24 · 15:38</text>
+  <!-- 16:45 restored -->
+  <line x1="304.3" y1="172" x2="304.3" y2="196" stroke="#2f6b4a" stroke-width="1.2"/>
+  <text x="252" y="168" font-family="IBM Plex Sans, DejaVu Sans, sans-serif" font-size="7" fill="#2f6b4a">16:45 library back on line</text>
+  <!-- 17:38 reconciled -->
+  <line x1="415.9" y1="184" x2="415.9" y2="196" stroke="#2f6b4a" stroke-width="1.2"/>
+  <text x="336" y="181" font-family="IBM Plex Sans, DejaVu Sans, sans-serif" font-size="7" fill="#2f6b4a">17:38 reconciled — 0 differences</text>
+
+  <!-- the 31-minute bracket, under the axis between 14:49 and 15:20:40 -->
+  <line x1="60" y1="196" x2="60" y2="230" stroke="#1a1d21" stroke-width="0.8"/>
+  <line x1="126.7" y1="196" x2="126.7" y2="230" stroke="#1a1d21" stroke-width="0.8"/>
+  <line x1="60" y1="230" x2="126.7" y2="230" stroke="#1a1d21" stroke-width="0.8"/>
+  <text x="93.3" y="242" text-anchor="middle" font-family="IBM Plex Mono, DejaVu Sans Mono, monospace"
+        font-size="7.5" font-weight="500" fill="#1a1d21">31 minutes</text>
+
+</svg>

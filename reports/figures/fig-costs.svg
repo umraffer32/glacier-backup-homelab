@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="482" height="336" viewBox="0 0 482 336">
+  <!-- Three cost panels: monthly vs Standard; one-time upload; the restore bill.
+       Bar area starts at x=134, width 328. Values in mono; identity via direct labels. -->
+  <rect x="0" y="0" width="482" height="336" fill="#ffffff"/>
+
+  <!-- ===== Panel A: monthly ===== -->
+  <text x="0" y="12" font-family="IBM Plex Sans, DejaVu Sans, sans-serif" font-size="9"
+        font-weight="600" fill="#1a1d21">Monthly storage — the same 5,135.0 GB, two ways</text>
+
+  <!-- scale: $118.11 = 328u -->
+  <text x="128" y="40" text-anchor="end" font-family="IBM Plex Sans, DejaVu Sans, sans-serif" font-size="8" fill="#1a1d21">Glacier Deep Archive</text>
+  <rect x="134" y="31" width="14.1" height="13" fill="#2e5570"/>
+  <text x="154" y="40" font-family="IBM Plex Mono, DejaVu Sans Mono, monospace" font-size="8" fill="#1a1d21">$5.08 / mo</text>
+
+  <text x="128" y="62" text-anchor="end" font-family="IBM Plex Sans, DejaVu Sans, sans-serif" font-size="8" fill="#1a1d21">S3 Standard</text>
+  <rect x="134" y="53" width="328" height="13" fill="#b6c0c9"/>
+  <text x="456" y="62" text-anchor="end" font-family="IBM Plex Mono, DejaVu Sans Mono, monospace" font-size="8" fill="#1a1d21">$118.11 / mo</text>
+
+  <text x="134" y="82" font-family="IBM Plex Sans, DejaVu Sans, sans-serif" font-size="7.5" fill="#4a5157">23× apart. The sliver is the point.</text>
+
+  <!-- ===== Panel B: one-time upload ===== -->
+  <text x="0" y="112" font-family="IBM Plex Sans, DejaVu Sans, sans-serif" font-size="9"
+        font-weight="600" fill="#1a1d21">One-time upload — 64 MB chunks vs rclone&#8217;s default</text>
+
+  <!-- scale: $5.92 = 328u -->
+  <text x="128" y="135" text-anchor="end" font-family="IBM Plex Sans, DejaVu Sans, sans-serif" font-size="8" fill="#1a1d21">as run (64 MB)</text>
+  <rect x="134" y="126" width="63.2" height="13" fill="#2e5570"/>
+  <text x="203" y="135" font-family="IBM Plex Mono, DejaVu Sans Mono, monospace" font-size="8" fill="#1a1d21">$1.14</text>
+
+  <text x="128" y="157" text-anchor="end" font-family="IBM Plex Sans, DejaVu Sans, sans-serif" font-size="8" fill="#4a5157">default (5 MB)</text>
+  <rect x="134" y="148" width="328" height="13" fill="#e3ebf1" stroke="#8aa7bd"
+        stroke-width="0.75" stroke-dasharray="3 2"/>
+  <text x="456" y="157" text-anchor="end" font-family="IBM Plex Mono, DejaVu Sans Mono, monospace" font-size="8" fill="#4a5157">$5.92 — never paid</text>
+
+  <!-- components of the $1.14; scale: $0.532 = 328u -->
+  <text x="0" y="180" font-family="IBM Plex Sans, DejaVu Sans, sans-serif" font-size="7"
+        font-weight="500" letter-spacing="0.7" fill="#4a5157">COMPONENTS OF THE $1.14</text>
+
+  <text x="128" y="196" text-anchor="end" font-family="IBM Plex Sans, DejaVu Sans, sans-serif" font-size="7.5" fill="#1a1d21">10,648 whole-file PUTs</text>
+  <rect x="134" y="189" width="328" height="8" fill="#5b7f9b"/>
+  <text x="134" y="196" font-family="IBM Plex Mono, DejaVu Sans Mono, monospace" font-size="7.5" fill="#ffffff" dx="4">$0.532</text>
+
+  <text x="128" y="209" text-anchor="end" font-family="IBM Plex Sans, DejaVu Sans, sans-serif" font-size="7.5" fill="#1a1d21">82,384 parts × 64 MB</text>
+  <rect x="134" y="202" width="254" height="8" fill="#5b7f9b"/>
+  <text x="394" y="209" font-family="IBM Plex Mono, DejaVu Sans Mono, monospace" font-size="7.5" fill="#1a1d21">$0.412</text>
+
+  <text x="128" y="222" text-anchor="end" font-family="IBM Plex Sans, DejaVu Sans, sans-serif" font-size="7.5" fill="#1a1d21">3,281 multipart completes</text>
+  <rect x="134" y="215" width="101" height="8" fill="#5b7f9b"/>
+  <text x="241" y="222" font-family="IBM Plex Mono, DejaVu Sans Mono, monospace" font-size="7.5" fill="#1a1d21">$0.164</text>
+
+  <text x="128" y="235" text-anchor="end" font-family="IBM Plex Sans, DejaVu Sans, sans-serif" font-size="7.5" fill="#1a1d21">post-upload verification</text>
+  <rect x="134" y="228" width="12.3" height="8" fill="#5b7f9b"/>
+  <text x="152" y="235" font-family="IBM Plex Mono, DejaVu Sans Mono, monospace" font-size="7.5" fill="#1a1d21">$0.02</text>
+
+  <text x="128" y="248" text-anchor="end" font-family="IBM Plex Sans, DejaVu Sans, sans-serif" font-size="7.5" fill="#1a1d21">3,281 multipart initiates</text>
+  <rect x="134" y="241" width="9.9" height="8" fill="#5b7f9b"/>
+  <text x="150" y="248" font-family="IBM Plex Mono, DejaVu Sans Mono, monospace" font-size="7.5" fill="#1a1d21">$0.016</text>
+
+  <!-- ===== Panel C: the restore bill ===== -->
+  <text x="0" y="278" font-family="IBM Plex Sans, DejaVu Sans, sans-serif" font-size="9"
+        font-weight="600" fill="#1a1d21">Full-library restore — ~$585 at standard tier, and where it goes</text>
+
+  <!-- stacked bar, scale: $584.81 = 328u; segments with 1.5u white gaps -->
+  <rect x="134" y="288" width="254.2" height="16" fill="#2e5570"/>
+  <text x="140" y="299" font-family="IBM Plex Mono, DejaVu Sans Mono, monospace" font-size="7.5" fill="#ffffff">egress to the box  $453.15 · 77%</text>
+  <rect x="389.7" y="288" width="57.6" height="16" fill="#5b7f9b"/>
+  <rect x="448.8" y="288" width="15.5" height="16" fill="#8aa7bd"/>
+  <rect x="465.8" y="288" width="0.8" height="16" fill="#1a1d21"/>
+
+  <!-- leader labels under the bar -->
+  <line x1="418.5" y1="304" x2="418.5" y2="310" stroke="#cfd6db" stroke-width="0.6"/>
+  <text x="418.5" y="318" text-anchor="middle" font-family="IBM Plex Sans, DejaVu Sans, sans-serif" font-size="7.5" fill="#1a1d21">retrieval <tspan font-family="IBM Plex Mono, DejaVu Sans Mono, monospace">$102.70</tspan></text>
+  <line x1="456.5" y1="304" x2="456.5" y2="322" stroke="#cfd6db" stroke-width="0.6"/>
+  <text x="462" y="330" text-anchor="end" font-family="IBM Plex Sans, DejaVu Sans, sans-serif" font-size="7.5" fill="#1a1d21">temp Standard copy <tspan font-family="IBM Plex Mono, DejaVu Sans Mono, monospace">$27.56</tspan> · requests <tspan font-family="IBM Plex Mono, DejaVu Sans Mono, monospace">$1.40</tspan></text>
+
+  <text x="0" y="330" font-family="IBM Plex Sans, DejaVu Sans, sans-serif" font-size="7.5" fill="#4a5157">bulk tier: same shape, ~$494 — cheaper retrieval, ~48 h instead of ~12 h</text>
+</svg>

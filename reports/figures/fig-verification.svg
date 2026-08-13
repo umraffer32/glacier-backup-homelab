@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="482" height="300" viewBox="0 0 482 300">
+  <!-- The 8 checks of verify-backup.sh and what each one proves. -->
+  <rect x="0" y="0" width="482" height="300" fill="#ffffff"/>
+
+  <!-- column heads -->
+  <text x="34" y="14" font-family="IBM Plex Sans, DejaVu Sans, sans-serif" font-size="7"
+        font-weight="500" letter-spacing="0.8" fill="#4a5157">THE CHECK</text>
+  <text x="216" y="14" font-family="IBM Plex Sans, DejaVu Sans, sans-serif" font-size="7"
+        font-weight="500" letter-spacing="0.8" fill="#4a5157">WHAT IT PROVES</text>
+  <line x1="0" y1="20" x2="482" y2="20" stroke="#1a1d21" stroke-width="0.8"/>
+
+  <!-- row 1 -->
+  <text x="6" y="40" font-family="IBM Plex Mono, DejaVu Sans Mono, monospace" font-size="10" font-weight="500" fill="#2e5570">1</text>
+  <text x="34" y="40" font-family="IBM Plex Sans, DejaVu Sans, sans-serif" font-size="8.5" font-weight="600" fill="#1a1d21">media drive mounted</text>
+  <path d="M 200 37 h 8 m 0 0 l -3 -2.5 m 3 2.5 l -3 2.5" stroke="#4a5157" stroke-width="0.9" fill="none"/>
+  <text x="216" y="40" font-family="IBM Plex Sans, DejaVu Sans, sans-serif" font-size="7.5" fill="#4a5157">the empty-directory trap, ruled out first — everything below depends on it</text>
+  <line x1="0" y1="50" x2="482" y2="50" stroke="#cfd6db" stroke-width="0.5"/>
+
+  <!-- row 2 -->
+  <text x="6" y="70" font-family="IBM Plex Mono, DejaVu Sans Mono, monospace" font-size="10" font-weight="500" fill="#2e5570">2</text>
+  <text x="34" y="70" font-family="IBM Plex Sans, DejaVu Sans, sans-serif" font-size="8.5" font-weight="600" fill="#1a1d21">local vs remote totals</text>
+  <path d="M 200 67 h 8 m 0 0 l -3 -2.5 m 3 2.5 l -3 2.5" stroke="#4a5157" stroke-width="0.9" fill="none"/>
+  <text x="216" y="70" font-family="IBM Plex Sans, DejaVu Sans, sans-serif" font-size="7.5" fill="#4a5157">file counts and byte totals agree, both legs</text>
+  <line x1="0" y1="80" x2="482" y2="80" stroke="#cfd6db" stroke-width="0.5"/>
+
+  <!-- row 3 -->
+  <text x="6" y="100" font-family="IBM Plex Mono, DejaVu Sans Mono, monospace" font-size="10" font-weight="500" fill="#2e5570">3</text>
+  <text x="34" y="100" font-family="IBM Plex Sans, DejaVu Sans, sans-serif" font-size="8.5" font-weight="600" fill="#1a1d21">per-file check — MOVIES</text>
+  <path d="M 200 97 h 8 m 0 0 l -3 -2.5 m 3 2.5 l -3 2.5" stroke="#4a5157" stroke-width="0.9" fill="none"/>
+  <text x="216" y="100" font-family="IBM Plex Sans, DejaVu Sans, sans-serif" font-size="7.5" fill="#4a5157">7,363 files matched one by one — no compensating errors</text>
+  <line x1="0" y1="110" x2="482" y2="110" stroke="#cfd6db" stroke-width="0.5"/>
+
+  <!-- row 4 -->
+  <text x="6" y="130" font-family="IBM Plex Mono, DejaVu Sans Mono, monospace" font-size="10" font-weight="500" fill="#2e5570">4</text>
+  <text x="34" y="130" font-family="IBM Plex Sans, DejaVu Sans, sans-serif" font-size="8.5" font-weight="600" fill="#1a1d21">per-file check — SHOWS</text>
+  <path d="M 200 127 h 8 m 0 0 l -3 -2.5 m 3 2.5 l -3 2.5" stroke="#4a5157" stroke-width="0.9" fill="none"/>
+  <text x="216" y="130" font-family="IBM Plex Sans, DejaVu Sans, sans-serif" font-size="7.5" fill="#4a5157">6,566 files matched one by one — the same proof, second leg</text>
+  <line x1="0" y1="140" x2="482" y2="140" stroke="#cfd6db" stroke-width="0.5"/>
+
+  <!-- row 5 -->
+  <text x="6" y="160" font-family="IBM Plex Mono, DejaVu Sans Mono, monospace" font-size="10" font-weight="500" fill="#2e5570">5</text>
+  <text x="34" y="160" font-family="IBM Plex Sans, DejaVu Sans, sans-serif" font-size="8.5" font-weight="600" fill="#1a1d21">storage-class census</text>
+  <path d="M 200 157 h 8 m 0 0 l -3 -2.5 m 3 2.5 l -3 2.5" stroke="#4a5157" stroke-width="0.9" fill="none"/>
+  <text x="216" y="160" font-family="IBM Plex Sans, DejaVu Sans, sans-serif" font-size="7.5" fill="#4a5157">all 13,929 objects in Deep Archive — the cost model holds</text>
+  <line x1="0" y1="170" x2="482" y2="170" stroke="#cfd6db" stroke-width="0.5"/>
+
+  <!-- row 6 -->
+  <text x="6" y="190" font-family="IBM Plex Mono, DejaVu Sans Mono, monospace" font-size="10" font-weight="500" fill="#2e5570">6</text>
+  <text x="34" y="190" font-family="IBM Plex Sans, DejaVu Sans, sans-serif" font-size="8.5" font-weight="600" fill="#1a1d21">bucket versioning</text>
+  <path d="M 200 187 h 8 m 0 0 l -3 -2.5 m 3 2.5 l -3 2.5" stroke="#4a5157" stroke-width="0.9" fill="none"/>
+  <text x="216" y="190" font-family="IBM Plex Sans, DejaVu Sans, sans-serif" font-size="7.5" fill="#4a5157">still Enabled — overwrite-mistake recovery intact</text>
+  <line x1="0" y1="200" x2="482" y2="200" stroke="#cfd6db" stroke-width="0.5"/>
+
+  <!-- row 7 -->
+  <text x="6" y="220" font-family="IBM Plex Mono, DejaVu Sans Mono, monospace" font-size="10" font-weight="500" fill="#2e5570">7</text>
+  <text x="34" y="220" font-family="IBM Plex Sans, DejaVu Sans, sans-serif" font-size="8.5" font-weight="600" fill="#1a1d21">multipart uploads</text>
+  <path d="M 200 217 h 8 m 0 0 l -3 -2.5 m 3 2.5 l -3 2.5" stroke="#4a5157" stroke-width="0.9" fill="none"/>
+  <text x="216" y="220" font-family="IBM Plex Sans, DejaVu Sans, sans-serif" font-size="7.5" fill="#4a5157">no orphaned parts billing invisibly as storage</text>
+  <line x1="0" y1="230" x2="482" y2="230" stroke="#cfd6db" stroke-width="0.5"/>
+
+  <!-- row 8 -->
+  <text x="6" y="250" font-family="IBM Plex Mono, DejaVu Sans Mono, monospace" font-size="10" font-weight="500" fill="#2e5570">8</text>
+  <text x="34" y="250" font-family="IBM Plex Sans, DejaVu Sans, sans-serif" font-size="8.5" font-weight="600" fill="#1a1d21">top-level prefixes</text>
+  <path d="M 200 247 h 8 m 0 0 l -3 -2.5 m 3 2.5 l -3 2.5" stroke="#4a5157" stroke-width="0.9" fill="none"/>
+  <text x="216" y="250" font-family="IBM Plex Sans, DejaVu Sans, sans-serif" font-size="7.5" fill="#4a5157">MOVIES/ and SHOWS/ only — nothing stray ever landed</text>
+
+  <!-- summary bar -->
+  <rect x="0" y="268" width="482" height="26" fill="#e3ebf1"/>
+  <text x="241" y="284.5" text-anchor="middle" font-family="IBM Plex Mono, DejaVu Sans Mono, monospace"
+        font-size="8" font-weight="500" fill="#2e5570">0 differences · 13,929 / 13,929 objects · 100% DEEP_ARCHIVE · read-only · &lt; $0.01 per run</text>
+</svg>

@@ -1,0 +1,27 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ListAndCheckBucket",
+      "Effect": "Allow",
+      "Action": [
+        "s3:ListBucket",
+        "s3:ListBucketMultipartUploads",
+        "s3:GetBucketVersioning"
+      ],
+      "Resource": "arn:aws:s3:::s3-glacier-ir-pictures-123456789012-us-west-2"
+    },
+    {
+      "Sid": "UploadAndRestoreObjects",
+      "Effect": "Allow",
+      "Action": [
+        "s3:PutObject",
+        "s3:GetObject",
+        "s3:RestoreObject",
+        "s3:AbortMultipartUpload",
+        "s3:ListMultipartUploadParts"
+      ],
+      "Resource": "arn:aws:s3:::s3-glacier-ir-pictures-123456789012-us-west-2/*"
+    }
+  ]
+}
