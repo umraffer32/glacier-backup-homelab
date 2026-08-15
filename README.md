@@ -4,6 +4,7 @@ Two additive-only backups from pickleboy to S3's Glacier family, via scoped no-d
 
 - **Movies (Jellyfin) → Glacier Deep Archive** — 5,135 GiB / 13,929 objects. **Complete and verified:** the full upload finished **2026-08-10 ~14:49 PDT** and was independently reconciled against S3 the same day — 13,929/13,929 objects, byte-exact, **0 differences**. See [Verification](#verification). Nothing outstanding.
 - **Pictures (Immich) → Glacier Instant Retrieval** — ~173 GiB / 82,455 objects, the full tree. **Complete and verified:** the full upload finished **2026-08-11 ~15:05 PDT** and was independently reconciled against S3 the same day — 82,455/82,455 objects, byte-exact, **0 differences**. Nothing outstanding but the monthly cron, held back by choice. See [The pictures backup](#the-pictures-backup-immich--glacier-instant-retrieval).
+- **Pictures, third copy → local, on Uriah's Windows PC** — 3-2-1 complete. `D:\immich-backup`, 82,492 files / 188,049,601,430 bytes, exact match against the source tree. See [The local third copy](#the-local-third-copy-pictures--windows-pc).
 
 > **Public mirror.** One-time sanitized snapshot of the private working repo: the AWS account ID — everywhere, including inside the two bucket names — is replaced with AWS's canonical example ID `123456789012`. Everything else (paths, hostnames, profile names, dates, costs) is real and as-deployed.
 
@@ -113,6 +114,23 @@ rclone copy pickleboy-glacier-ir:s3-glacier-ir-pictures-123456789012-us-west-2/u
 3. **"0 transferred" is a healthy run.** Don't read an idle log as a broken one — and don't read a broken mount as idle; the mount guard (a lesson from the 2026-08-10 mount incident) is what distinguishes them.
 4. **Thumbnail regeneration churns the bucket.** If Immich regenerates derivatives (version upgrades do this), changed files re-upload and superseded ones persist as noncurrent versions or orphaned keys. `verify-pictures.sh` check 2 treats remote ≥ local on `thumbs/`/`encoded-video/` as expected for exactly this reason. Bounded by the derived data's size — pennies.
 5. **`pictures-backup.log` is gitignored and unbounded.** Append-only, no rotation, ~82k INFO lines from the first run alone. Accepted; it's the run record, not repo content.
+
+## The local third copy (pictures → Windows PC)
+
+**Status (2026-08-14): done.** 3-2-1 is now complete for the pictures project: live tree + Glacier IR offsite + this local copy.
+
+The plan was originally a local drive physically attached to pickleboy — a spare USB stick, then a spare bare HDD needing a dock. Both hit real friction (the stick hard-stalled at the kernel level under sustained write and turned out to run hot; the HDD needed a dock plus a free USB3 port pickleboy didn't have). Rather than solve that hardware puzzle, the simplest path won: a direct `scp -r` of the whole `PICTURES` tree from pickleboy to `D:\immich-backup` on Uriah's main Windows PC.
+
+Verified complete by exact match, not just a "did it finish" glance:
+
+| | Source (pickleboy) | `D:\immich-backup` |
+|---|---|---|
+| Files | 82,492 | 82,492 |
+| Bytes | 188,049,601,430 | 188,049,601,430 |
+
+SCP doesn't checksum in flight, so this isn't a byte-hash proof the way the Glacier reconciliation is — but an exact match on both count and total size across 82k files is a strong signal; a dropped or partial transfer would almost certainly show up as a mismatch on at least one.
+
+This was a one-time manual copy, not a script or cron — `scripts/pickleboy-backup-pictures-local.sh` exists in this repo (written and tested against the abandoned USB stick) but is currently unused, since the real copy lives on a different machine entirely. Left in place as a starting point if a drive ever gets attached to pickleboy directly instead.
 
 ## The movie backup (Jellyfin → Deep Archive)
 
