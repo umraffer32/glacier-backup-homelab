@@ -117,20 +117,20 @@ rclone copy pickleboy-glacier-ir:s3-glacier-ir-pictures-123456789012-us-west-2/u
 
 ## The local third copy (pictures → Windows PC)
 
-**Status (2026-08-14): done.** 3-2-1 is now complete for the pictures project: live tree + Glacier IR offsite + this local copy.
+**Status (2026-08-16): done, hash-verified.** 3-2-1 is now complete for the pictures project: live tree + Glacier IR offsite + this local copy.
 
-The plan was originally a local drive physically attached to pickleboy — a spare USB stick, then a spare bare HDD needing a dock. Both hit real friction (the stick hard-stalled at the kernel level under sustained write and turned out to run hot; the HDD needed a dock plus a free USB3 port pickleboy didn't have). Rather than solve that hardware puzzle, the simplest path won: a direct `scp -r` of the whole `PICTURES` tree from pickleboy to `D:\immich-backup` on Uriah's main Windows PC.
+The plan was originally a local drive physically attached to pickleboy — a spare USB stick, then a spare bare HDD needing a dock. Both hit real friction (the stick hard-stalled at the kernel level under sustained write and turned out to run hot; the HDD needed a dock plus a free USB3 port pickleboy didn't have). A quick `scp -r` of the whole `PICTURES` tree to `D:\immich-backup` on the owner's Windows PC solved the hardware problem, but scp doesn't preserve modtimes — every file landed timestamped at copy-time, which would've made any future rclone comparison see the whole tree as changed. Rather than work around that, the copy was redone properly with rclone itself, pulled from the Windows side over SFTP:
 
-Verified complete by exact match, not just a "did it finish" glance:
+```powershell
+# one-time setup: rclone config -> new remote "pickleboy", type sftp,
+# host <pickleboy-ip>, user mrpocket, port <ssh-port>, key_file <path-to-private-key>
+rclone copy pickleboy:/mnt/media/PICTURES "D:\immich-backup" --exclude "lost+found/**" --progress
+rclone check pickleboy:/mnt/media/PICTURES "D:\immich-backup" --exclude "lost+found/**" --one-way
+```
 
-| | Source (pickleboy) | `D:\immich-backup` |
-|---|---|---|
-| Files | 82,492 | 82,492 |
-| Bytes | 188,049,601,430 | 188,049,601,430 |
+Verified by real checksum, not just a count/size proxy: `rclone check` (full MD5, both sides) reported **82,498 matching files**, with 6 flagged "missing" — all explained by Immich ingesting new photos on pickleboy during the ~2h50m check window itself (the source is a live, actively-written tree; not a real gap). A follow-up `rclone copy` swept those up in 11.5 seconds (7 files, 216.785 MiB, 0 errors), closing the loop.
 
-SCP doesn't checksum in flight, so this isn't a byte-hash proof the way the Glacier reconciliation is — but an exact match on both count and total size across 82k files is a strong signal; a dropped or partial transfer would almost certainly show up as a mismatch on at least one.
-
-This was a one-time manual copy, not a script or cron — `scripts/pickleboy-backup-pictures-local.sh` exists in this repo (written and tested against the abandoned USB stick) but is currently unused, since the real copy lives on a different machine entirely. Left in place as a starting point if a drive ever gets attached to pickleboy directly instead.
+This was a manual run, not a script or cron — `scripts/pickleboy-backup-pictures-local.sh` exists in this repo (written and tested against the abandoned USB stick, meant for a drive physically attached to pickleboy) but is unused, since the real copy pulls client-side from the Windows PC over SFTP instead. Left in place as a starting point if a drive ever gets attached to pickleboy directly instead. Rerunning the two commands above anytime is safe and picks up whatever's new since the last run.
 
 ## The movie backup (Jellyfin → Deep Archive)
 
